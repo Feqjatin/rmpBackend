@@ -12,7 +12,26 @@ namespace rmpBackend.Controllers
     [ApiController]
     public class AdminController(AppDbContext db) : ControllerBase
     {
-       
+        [HttpPost("getUserByRole")]
+        public async Task<IActionResult> GetUserByRole([FromBody] removeRoleDto req)
+        {
+            var users = await db.Roles
+           .Where(r => r.RoleId == req.RoleId)
+           .SelectMany(r => r.Users)
+           .Select(u => new
+           {
+               u.UserId,
+               u.Username,
+               u.Email,
+               u.Phone,
+               u.Status
+           })
+           .ToListAsync();
+
+            return Ok(users);
+        }
+
+
         [HttpPost("assign-role")]
         public async Task<IActionResult> assignRole([FromBody] AssignRoleDto req)
         {
@@ -42,13 +61,13 @@ namespace rmpBackend.Controllers
         [HttpPost("addNewRole")]
         public async Task<IActionResult> addNewRole([FromBody] NewRoleDto req)
         {
-            if(req.RoleName==null||req.Description==null)
+            if (req.RoleName == null || req.Description == null)
             {
                 return BadRequest("null parameter found");
             }
 
             var role = new Role
-                {
+            {
                 RoleName = req.RoleName,
                 Description = req.Description,
             };
@@ -60,8 +79,8 @@ namespace rmpBackend.Controllers
 
         [HttpDelete("removeRole")]
         public async Task<IActionResult> removeRole([FromBody] removeRoleDto req)
-        {   
-             
+        {
+
             Role role = await db.Roles.FirstAsync(u => u.RoleId == req.RoleId);
             if (role == null)
             {
@@ -72,24 +91,55 @@ namespace rmpBackend.Controllers
                 db.Roles.Remove(role);
                 await db.SaveChangesAsync();
             }
-                return Ok("removed role ");
+            return Ok("removed role ");
         }
         [HttpDelete("removeUser")]
         public async Task<IActionResult> removeUser([FromBody] removeUserDto req)
         {
-          
+
             User user = await db.Users.FirstAsync(u => u.UserId == req.UserId);
             if (user == null)
             {
                 return BadRequest("user not found");
             }
             else
-            {   
+            {
                 db.Users.Remove(user);
                 await db.SaveChangesAsync();
             }
             return Ok("removed user");
         }
+        [HttpGet("role")]
+        public async Task<IActionResult> getAllRoles()
+        {
+            var roles = await db.Roles.Select(u => new
+            {
+                u.RoleId,
+                u.RoleName,
+                u.Description
+            }).ToListAsync();
+
+            return Ok(roles);
+        }
+        [HttpGet("users")]
+        public async Task<IActionResult> getAllUsers()
+        {
+            var users = await db.Users.Select(u => new
+            {
+                u.UserId,
+                u.Username,
+                u.Email,
+                u.Phone,
+                u.Status,
+                u.CreatedAt,
+                u.UpdatedAt
+
+            })
+                                               .ToListAsync();
+
+            return Ok(users);
+        }
+
         [HttpDelete("dischargeUserToRole")]
         public async Task<IActionResult> dischargeUserToRole([FromBody] AssignRoleDto req)
         {
@@ -118,3 +168,4 @@ namespace rmpBackend.Controllers
         }
     }
 }
+

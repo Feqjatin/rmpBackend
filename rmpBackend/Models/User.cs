@@ -21,5 +21,7 @@ public partial class User
 
     public DateTime? UpdatedAt { get; set; }
 
+    public virtual ICollection<JobOpening> JobOpenings { get; set; } = new List<JobOpening>();
+
     public virtual ICollection<Role> Roles { get; set; } = new List<Role>();
 }

@@ -17,21 +17,21 @@ namespace rmpBackend.middleware
         {
             if (context.User.Identity?.IsAuthenticated == true)
             {
-                
+
                 var username = context.User.Claims
                     .FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier || c.Type == "sub")
                     ?.Value;
 
                 if (!string.IsNullOrEmpty(username))
                 {
-                     
+
                     var user = await db.Users
                         .Include(u => u.Roles)
                         .FirstOrDefaultAsync(u => u.Username == username);
 
                     if (user != null)
                     {
-                        
+
                         var claims = new List<Claim>
                         {
                             new Claim(ClaimTypes.Name, user.Username)
