@@ -86,7 +86,6 @@ namespace rmpBackend.Controllers
             return Ok(jobs);
         }
 
-         
         [HttpPost("job-update")]
         public async Task<IActionResult> UpdateJob([FromBody] UpdateJobDto req)
         {
@@ -97,7 +96,6 @@ namespace rmpBackend.Controllers
             if (job == null)
                 return BadRequest("Job not found.");
 
-             
             job.Title = req.Title;
             job.Description = req.Description;
             job.Location = req.Location;
@@ -105,7 +103,12 @@ namespace rmpBackend.Controllers
             job.MinExperience = req.MinExperience;
             job.UpdatedAt = DateTime.UtcNow;
 
-            
+            var skillIds = req.Skills.Select(s => s.Id).ToList();
+
+            var skillsToAttach = await db.Skills
+                .Where(s => skillIds.Contains(s.SkillId))
+                .ToListAsync();
+
             db.JobSkillMaps.RemoveRange(job.JobSkillMaps);
             job.JobSkillMaps = req.Skills.Select(s => new JobSkillMap
             {
@@ -118,13 +121,16 @@ namespace rmpBackend.Controllers
             return Ok("Job updated successfully.");
         }
 
-         
+
+
         [HttpPost("job-create")]
         public async Task<IActionResult> CreateJob([FromBody] NewJobDto req)
         {
-             
             var user = await db.Users.FirstOrDefaultAsync(u => u.Username == req.Username);
-            if (user == null) return BadRequest("Invalid username.");
+            if (user == null)
+            {
+                return BadRequest("Invalid username.");
+            }
 
             var job = new JobOpening
             {
@@ -140,7 +146,6 @@ namespace rmpBackend.Controllers
             await db.JobOpenings.AddAsync(job);
             await db.SaveChangesAsync();
 
-            
             foreach (var s in req.Skills)
             {
                 db.JobSkillMaps.Add(new JobSkillMap
@@ -152,10 +157,11 @@ namespace rmpBackend.Controllers
             }
 
             await db.SaveChangesAsync();
-            return Ok(job);
+            return Ok("done");
         }
 
-         
+
+
         [HttpDelete("job-delete")]
         public async Task<IActionResult> DeleteJob([FromBody] DeleteJobDto req)
         {
@@ -224,6 +230,95 @@ namespace rmpBackend.Controllers
 
             return Ok(skills);
         }
+
+
+ 
+        [HttpPost("candidate-create")]
+        public async Task<IActionResult> CreateCandidate([FromBody] CreateCandidateDto req)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var candidate = new Candidate
+            {
+                Name = req.Name,
+                Email = req.Email,
+                Phone = req.Phone,
+                ResumePath = req.ResumePath,
+                Status = req.Status,
+                CreatedAt = DateTime.UtcNow // Set creation timestamp
+            };
+
+            await db.Candidates.AddAsync(candidate);
+            await db.SaveChangesAsync();
+
+            return Ok(candidate);
+        }
+
+        
+        [HttpGet("candidate-all")]
+        public async Task<IActionResult> GetAllCandidates()
+        {
+            var candidates = await db.Candidates.ToListAsync();
+            return Ok(candidates);
+        }
+
+        
+        [HttpGet("candidate/{id}")]
+        public async Task<IActionResult> GetCandidateById(int id)
+        {
+            var candidate = await db.Candidates.FindAsync(id);
+
+            if (candidate == null)
+            {
+                return NotFound("Candidate not found.");
+            }
+
+            return Ok(candidate);
+        }
+
+
+        [HttpPut("candidate-update")]  
+        public async Task<IActionResult> UpdateCandidate([FromBody] UpdateCandidateDto req)  
+        {
+             
+            var candidate = await db.Candidates.FindAsync(req.CandidateId);
+            if (candidate == null)
+            {
+                return NotFound("Candidate not found.");
+            }
+
+            
+            candidate.Name = req.Name;
+            candidate.Email = req.Email;
+            candidate.Phone = req.Phone;
+            candidate.ResumePath = req.ResumePath;
+            candidate.Status = req.Status;
+            candidate.UpdatedAt = DateTime.UtcNow;  
+
+            await db.SaveChangesAsync();
+
+            return Ok("Candidate updated successfully.");
+        }
+
+
+        [HttpDelete("candidate-delete/{id}")]
+        public async Task<IActionResult> DeleteCandidate(int id)
+        {
+            var candidate = await db.Candidates.FindAsync(id);
+            if (candidate == null)
+            {
+                return NotFound("Candidate not found.");
+            }
+
+            db.Candidates.Remove(candidate);
+            await db.SaveChangesAsync();
+
+            return Ok("Candidate deleted successfully.");
+        }
     }
 }
+
 
