@@ -318,6 +318,82 @@ namespace rmpBackend.Controllers
 
             return Ok("Candidate deleted successfully.");
         }
+
+
+
+
+        [HttpPost("assignReviewer")]
+        public async Task<IActionResult> AssignReviewer([FromBody] AssignReviewerDto req)
+        {
+            var user = await db.Users
+               .Include(u => u.Roles)  
+               .FirstOrDefaultAsync(u => u.Username == req.UserName);
+
+            if (user == null)
+            {
+                return BadRequest("User not found.");
+            }
+
+        
+            var jobOpening = await db.JobOpenings.FindAsync(req.JobId);
+            if (jobOpening == null)
+            {
+                return BadRequest("Job opening not found.");
+            }
+ 
+            bool isReviewer = user.Roles.Any(role => role.RoleName.ToLower() == "reviewer");
+            if (!isReviewer)
+            {
+                return BadRequest("This user does not have the 'Reviewer' role and cannot be assigned.");
+            }
+
+       
+            var alreadyAssigned = await db.JobReviewerMaps
+                .AnyAsync(jrm => jrm.JobId == req.JobId && jrm.ReviewerUserId == user.UserId);
+
+            if (alreadyAssigned)
+            {
+                return Ok("User is already assigned as a reviewer to this job opening.");
+            }
+ 
+            var jobReviewerMap = new JobReviewerMap
+            {
+                JobId = req.JobId,
+                ReviewerUserId = user.UserId
+            };
+
+            db.JobReviewerMaps.Add(jobReviewerMap);
+            await db.SaveChangesAsync();
+
+            return Ok("Reviewer assigned to the job opening successfully!");
+        }
+ 
+        [HttpDelete("dischargeReviewer")]
+        public async Task<IActionResult> DischargeReviewer([FromBody] AssignReviewerDto req)
+        {
+            
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Username == req.UserName);
+            if (user == null)
+            {
+                return BadRequest("User not found.");
+            }
+             
+            var assignment = await db.JobReviewerMaps
+                .FirstOrDefaultAsync(jrm => jrm.JobId == req.JobId && jrm.ReviewerUserId == user.UserId);
+
+            if (assignment == null)
+            {
+                return Ok("This user is not assigned as a reviewer to this job opening.");
+            }
+
+            
+            db.JobReviewerMaps.Remove(assignment);
+            await db.SaveChangesAsync();
+
+            return Ok("Reviewer discharged from the job opening successfully!");
+        }
+
+         
     }
 }
 

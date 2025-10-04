@@ -44,4 +44,17 @@ namespace rmpBackend.Models
         [StringLength(50)]
         public string? Status { get; set; }
     }
+
+
+    public class SkillAssessmentDto
+    {
+        public int CandidateId { get; set; }
+        public int SkillId { get; set; }
+        public int? ApplicationId { get; set; }  
+        public decimal? YearsOfExperience { get; set; }
+        public int AssessedByUserId { get; set; }
+        public int AssessedInRoleId { get; set; }
+        public string? Comment { get; set; }
+        public string? Stage { get; set; }
+    }
 }

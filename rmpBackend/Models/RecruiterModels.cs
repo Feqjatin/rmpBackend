@@ -54,4 +54,6 @@ namespace rmpBackend.Models
     {
         public int SkillId { get; set; }
     }
+
+    
 }
