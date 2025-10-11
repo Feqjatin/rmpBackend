@@ -23,11 +23,15 @@ public partial class User
 
     public virtual ICollection<ApplicationFeedback> ApplicationFeedbacks { get; set; } = new List<ApplicationFeedback>();
 
+    public virtual ICollection<BulkInterviewEvent> BulkInterviewEvents { get; set; } = new List<BulkInterviewEvent>();
+
     public virtual ICollection<JobOpening> JobOpenings { get; set; } = new List<JobOpening>();
 
     public virtual ICollection<JobReviewerMap> JobReviewerMaps { get; set; } = new List<JobReviewerMap>();
 
     public virtual ICollection<SkillAssessment> SkillAssessments { get; set; } = new List<SkillAssessment>();
+
+    public virtual ICollection<InterviewInterviewerMap> InterviewInterviewerMaps { get; set; } = new List<InterviewInterviewerMap>();
 
     public virtual ICollection<Role> Roles { get; set; } = new List<Role>();
 }

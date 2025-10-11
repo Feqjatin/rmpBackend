@@ -27,6 +27,8 @@ public partial class JobOpening
 
     public virtual User? CreatedByNavigation { get; set; }
 
+    public virtual ICollection<InterviewRoundTemplate> InterviewRoundTemplates { get; set; } = new List<InterviewRoundTemplate>();
+
     public virtual ICollection<JobApplication> JobApplications { get; set; } = new List<JobApplication>();
 
     public virtual ICollection<JobReviewerMap> JobReviewerMaps { get; set; } = new List<JobReviewerMap>();

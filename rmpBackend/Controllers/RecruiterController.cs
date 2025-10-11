@@ -248,7 +248,7 @@ namespace rmpBackend.Controllers
                 Phone = req.Phone,
                 ResumePath = req.ResumePath,
                 Status = req.Status,
-                CreatedAt = DateTime.UtcNow // Set creation timestamp
+                CreatedAt = DateTime.UtcNow  
             };
 
             await db.Candidates.AddAsync(candidate);
@@ -392,8 +392,68 @@ namespace rmpBackend.Controllers
 
             return Ok("Reviewer discharged from the job opening successfully!");
         }
+        [HttpPost("round-template")]
+        public async Task<IActionResult> CreateRoundTemplate([FromBody] InterviewRoundTemplateDto dto)
+        {
+            var template = new InterviewRoundTemplate
+            {
+                JobId = dto.JobId,
+                RoundOrder = dto.RoundOrder,
+                RoundType = dto.RoundType,
+                RoundName = dto.RoundName,
+                Description = dto.Description
+            };
+            db.InterviewRoundTemplates.Add(template);
+            await db.SaveChangesAsync();
+            return Ok(template);
+        }
 
-         
+        [HttpGet("round-template")]
+        public async Task<IActionResult> GetAllRoundTemplates()
+        {
+            return Ok(await db.InterviewRoundTemplates.ToListAsync());
+        }
+
+        [HttpGet("round-template/{id}")]
+        public async Task<IActionResult> GetRoundTemplateById(int id)
+        {
+            var template = await db.InterviewRoundTemplates.FindAsync(id);
+            return template == null ? NotFound() : Ok(template);
+        }
+
+        [HttpGet("round-template/by-job/{jobId}")]
+        public async Task<IActionResult> GetRoundTemplatesByJobId(int jobId)
+        {
+            var templates = await db.InterviewRoundTemplates.Where(t => t.JobId == jobId).OrderBy(t => t.RoundOrder).ToListAsync();
+            return Ok(templates);
+        }
+
+        [HttpPut("round-template/{id}")]
+        public async Task<IActionResult> UpdateRoundTemplate(int id, [FromBody] InterviewRoundTemplateDto dto)
+        {
+            var template = await db.InterviewRoundTemplates.FindAsync(id);
+            if (template == null) return NotFound();
+
+            template.JobId = dto.JobId;
+            template.RoundOrder = dto.RoundOrder;
+            template.RoundType = dto.RoundType;
+            template.RoundName = dto.RoundName;
+            template.Description = dto.Description;
+
+            await db.SaveChangesAsync();
+            return Ok(template);
+        }
+
+        [HttpDelete("round-template/{id}")]
+        public async Task<IActionResult> DeleteRoundTemplate(int id)
+        {
+            var template = await db.InterviewRoundTemplates.FindAsync(id);
+            if (template == null) return NotFound();
+            db.InterviewRoundTemplates.Remove(template);
+            await db.SaveChangesAsync();
+            return Ok("Template deleted successfully.");
+        }
+
     }
 }
 

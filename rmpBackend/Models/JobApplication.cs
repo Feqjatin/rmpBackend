@@ -21,9 +21,15 @@ public partial class JobApplication
 
     public decimal? Rank { get; set; }
 
+    public int? BulkEventId { get; set; }
+
     public virtual ICollection<ApplicationFeedback> ApplicationFeedbacks { get; set; } = new List<ApplicationFeedback>();
 
+    public virtual BulkInterviewEvent? BulkEvent { get; set; }
+
     public virtual Candidate Candidate { get; set; } = null!;
+
+    public virtual ICollection<InterviewSchedule> InterviewSchedules { get; set; } = new List<InterviewSchedule>();
 
     public virtual JobOpening Job { get; set; } = null!;
 

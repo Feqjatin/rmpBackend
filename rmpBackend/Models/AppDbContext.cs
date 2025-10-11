@@ -17,7 +17,14 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<ApplicationFeedback> ApplicationFeedbacks { get; set; }
 
+    public virtual DbSet<BulkInterviewEvent> BulkInterviewEvents { get; set; }
+
     public virtual DbSet<Candidate> Candidates { get; set; }
+
+    public virtual DbSet<InterviewRoundTemplate> InterviewRoundTemplates { get; set; }
+    public virtual DbSet<InterviewInterviewerMap> InterviewInterviewerMaps { get; set; }
+
+    public virtual DbSet<InterviewSchedule> InterviewSchedules { get; set; }
 
     public virtual DbSet<JobApplication> JobApplications { get; set; }
 
@@ -77,6 +84,29 @@ public partial class AppDbContext : DbContext
                 .HasConstraintName("fk_feedback_role");
         });
 
+        modelBuilder.Entity<BulkInterviewEvent>(entity =>
+        {
+            entity.HasKey(e => e.BulkEventId).HasName("PK__BulkInte__737C577DE1900B68");
+
+            entity.ToTable("BulkInterviewEvent");
+
+            entity.Property(e => e.BulkEventId).HasColumnName("bulk_event_id");
+            entity.Property(e => e.CreatedByUserId).HasColumnName("created_by_user_id");
+            entity.Property(e => e.Description).HasColumnName("description");
+            entity.Property(e => e.EventDate).HasColumnName("event_date");
+            entity.Property(e => e.EventName)
+                .HasMaxLength(255)
+                .HasColumnName("event_name");
+            entity.Property(e => e.Location)
+                .HasMaxLength(255)
+                .HasColumnName("location");
+
+            entity.HasOne(d => d.CreatedByUser).WithMany(p => p.BulkInterviewEvents)
+                .HasForeignKey(d => d.CreatedByUserId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_bulkevent_user");
+        });
+
         modelBuilder.Entity<Candidate>(entity =>
         {
             entity.HasKey(e => e.CandidateId).HasName("PK__Candidat__39BD4C18A7C26F08");
@@ -105,6 +135,79 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
         });
 
+        modelBuilder.Entity<InterviewRoundTemplate>(entity =>
+        {
+            entity.HasKey(e => e.RoundTemplateId).HasName("PK__Intervie__3902DA969A1BDA1A");
+
+            entity.ToTable("InterviewRoundTemplate");
+
+            entity.Property(e => e.RoundTemplateId).HasColumnName("round_template_id");
+            entity.Property(e => e.Description).HasColumnName("description");
+            entity.Property(e => e.JobId).HasColumnName("job_id");
+            entity.Property(e => e.RoundName)
+                .HasMaxLength(255)
+                .HasColumnName("round_name");
+            entity.Property(e => e.RoundOrder).HasColumnName("round_order");
+            entity.Property(e => e.RoundType)
+                .HasMaxLength(100)
+                .HasColumnName("round_type");
+
+            entity.HasOne(d => d.Job).WithMany(p => p.InterviewRoundTemplates)
+                .HasForeignKey(d => d.JobId)
+                .HasConstraintName("fk_roundtemplate_job");
+
+
+        });
+
+        modelBuilder.Entity<InterviewSchedule>(entity =>
+        {
+            entity.HasKey(e => e.InterviewId).HasName("PK__Intervie__141E55522EBD0542");
+
+            entity.ToTable("InterviewSchedule");
+
+            entity.Property(e => e.InterviewId).HasColumnName("interview_id");
+            entity.Property(e => e.ApplicationId).HasColumnName("application_id");
+            entity.Property(e => e.Location)
+                .HasMaxLength(255)
+                .HasColumnName("location");
+            entity.Property(e => e.MeetingLink).HasColumnName("meeting_link");
+            entity.Property(e => e.RoundTemplateId).HasColumnName("round_template_id");
+            entity.Property(e => e.ScheduledEndTime).HasColumnName("scheduled_end_time");
+            entity.Property(e => e.ScheduledStartTime).HasColumnName("scheduled_start_time");
+            entity.Property(e => e.Status)
+                .HasMaxLength(50)
+                .HasDefaultValue("Scheduled")
+                .HasColumnName("status");
+
+            entity.HasOne(d => d.Application).WithMany(p => p.InterviewSchedules)
+                .HasForeignKey(d => d.ApplicationId)
+                .HasConstraintName("fk_interviewschedule_application");
+
+            entity.HasOne(d => d.RoundTemplate).WithMany(p => p.InterviewSchedules)
+                .HasForeignKey(d => d.RoundTemplateId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_interviewschedule_roundtemplate");
+        });
+
+        modelBuilder.Entity<InterviewInterviewerMap>(entity =>
+        {
+            entity.HasKey(e => new { e.InterviewId, e.InterviewerUserId });
+
+            entity.ToTable("InterviewInterviewerMap");
+
+            entity.HasOne(d => d.Interview)
+                .WithMany(p => p.InterviewInterviewerMaps)
+                .HasForeignKey(d => d.InterviewId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_interviewmap_schedule");
+
+            entity.HasOne(d => d.InterviewerUser)
+                .WithMany(p => p.InterviewInterviewerMaps)
+                .HasForeignKey(d => d.InterviewerUserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_interviewmap_user");
+        });
+
         modelBuilder.Entity<JobApplication>(entity =>
         {
             entity.HasKey(e => e.ApplicationId).HasName("PK__JobAppli__3BCBDCF214B8A4F0");
@@ -121,11 +224,17 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.AppliedAt)
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnName("applied_at");
+            entity.Property(e => e.BulkEventId).HasColumnName("bulk_event_id");
             entity.Property(e => e.CandidateId).HasColumnName("candidate_id");
             entity.Property(e => e.JobId).HasColumnName("job_id");
             entity.Property(e => e.Rank).HasColumnType("decimal(5, 2)");
             entity.Property(e => e.StatusReason).HasColumnName("status_reason");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+
+            entity.HasOne(d => d.BulkEvent).WithMany(p => p.JobApplications)
+                .HasForeignKey(d => d.BulkEventId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_jobapplication_bulkevent");
 
             entity.HasOne(d => d.Candidate).WithMany(p => p.JobApplications)
                 .HasForeignKey(d => d.CandidateId)
@@ -376,3 +485,4 @@ public partial class AppDbContext : DbContext
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
 }
+

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -256,6 +256,21 @@ namespace rmpBackend.Controllers
             db.JobApplications.Add(newApplication);
             await db.SaveChangesAsync();
         }
+        //[HttpPost("bulk-event")]
+        //public async Task<IActionResult> CreateBulkEvent([FromBody] BulkInterviewEventDto dto)
+        //{
+        //    var bulkEvent = new BulkInterviewEvent
+        //    {
+        //        EventName = dto.EventName,
+        //        EventDate = DateOnly.FromDateTime(dto.EventDate),
+        //        Location = dto.Location,
+        //        Description = dto.Description,
+        //        CreatedByUserId = dto.CreatedByUserId
+        //    };
+        //    db.BulkInterviewEvents.Add(bulkEvent);
+        //    await db.SaveChangesAsync();
+        //    return Ok(bulkEvent);
+        //}
     }
 }
 
