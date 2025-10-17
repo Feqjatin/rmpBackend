@@ -33,5 +33,9 @@ public partial class JobApplication
 
     public virtual JobOpening Job { get; set; } = null!;
 
+    public virtual ICollection<ReviewerAction> ReviewerActions { get; set; } = new List<ReviewerAction>();
+
+    public virtual ICollection<ReviewerEvaluationScore> ReviewerEvaluationScores { get; set; } = new List<ReviewerEvaluationScore>();
+
     public virtual ICollection<SkillAssessment> SkillAssessments { get; set; } = new List<SkillAssessment>();
 }

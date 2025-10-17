@@ -34,4 +34,6 @@ public partial class JobOpening
     public virtual ICollection<JobReviewerMap> JobReviewerMaps { get; set; } = new List<JobReviewerMap>();
 
     public virtual ICollection<JobSkillMap> JobSkillMaps { get; set; } = new List<JobSkillMap>();
+
+    public virtual ICollection<ReviewerEvaluationCriterion> ReviewerEvaluationCriteria { get; set; } = new List<ReviewerEvaluationCriterion>();
 }

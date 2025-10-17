@@ -1,0 +1,132 @@
+﻿using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using rmpBackend.Models;
+
+namespace rmpBackend.Controllers
+{
+    [Authorize(Roles = "reviewer")]
+    [ApiController]
+    [Route("api/[controller]")]
+    public class ReviewerController(AppDbContext db) : ControllerBase
+    {
+        
+        [HttpGet("dashboard/{userName}")]
+        public async Task<IActionResult> GetReviewerDashboard(string userName)
+        {
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Username == userName);
+            if (user == null)
+            {
+                return NotFound("User not found.");
+            }
+
+            var assignedJobs = await db.JobReviewerMaps
+                .Where(jrm => jrm.ReviewerUserId == user.UserId)
+                .Include(jrm => jrm.Job) // Include JobOpening to get the title
+                .Select(jrm => jrm.Job)
+                .ToListAsync();
+
+            var dashboardResults = new List<ReviewerDashboardDto>();
+
+            foreach (var job in assignedJobs)
+            {
+                var applicationsInThisJob = await db.JobApplications
+                    .Where(ja => ja.JobId == job.JobId)
+                    .Select(ja => ja.ApplicationId)
+                    .ToListAsync();
+
+                var reviewerActions = await db.ReviewerActions
+                    .Where(ra => ra.ReviewerUserId == user.UserId && applicationsInThisJob.Contains(ra.ApplicationId))
+                    .ToDictionaryAsync(ra => ra.ApplicationId, ra => ra);
+
+                int acceptedCount = 0;
+                int rejectedCount = 0;
+                int onHoldCount = 0;
+                int newCount = 0;
+                int publishedCount = 0;
+
+                foreach (var appId in applicationsInThisJob)
+                {
+                    if (reviewerActions.TryGetValue(appId, out var action))
+                    {
+                        if (action.Status == "Accepted") acceptedCount++;
+                        else if (action.Status == "Rejected") rejectedCount++;
+                        else if (action.Status == "OnHold") onHoldCount++;
+
+                        if (action.IsPublished) publishedCount++;
+                    }
+                    else
+                    {
+                        newCount++;
+                    }
+                }
+
+                dashboardResults.Add(new ReviewerDashboardDto
+                {
+                    JobId = job.JobId,
+                    JobTitle = job.Title,
+                    Accepted = acceptedCount,
+                    Rejected = rejectedCount,
+                    OnHold = onHoldCount,
+                    New = newCount,
+                    Published = publishedCount,
+                    Total=acceptedCount+rejectedCount+onHoldCount+newCount,
+                });
+            }
+
+            return Ok(dashboardResults);
+        }
+        [HttpGet("getApplicationsForReviewer/{jobId}")]
+        public async Task<IActionResult> GetApplicationsForReviewer(int jobId)
+        {
+            var applications = await db.JobApplications
+                .Where(ja => ja.JobId == jobId)
+                .Select(ja => new { ja.ApplicationId })
+                .ToListAsync();
+
+            if (!applications.Any())
+            {
+                return Ok(new List<ReviewerApplicationActionDto>());
+            }
+
+            var applicationIds = applications.Select(a => a.ApplicationId).ToList();
+
+            var existingActions = await db.ReviewerActions
+                .Where(ra => applicationIds.Contains(ra.ApplicationId))
+                .ToDictionaryAsync(ra => ra.ApplicationId);
+
+            var results = applications.Select(app =>
+            {
+                if (existingActions.TryGetValue(app.ApplicationId, out var action))
+                {
+                    return new ReviewerApplicationActionDto
+                    {
+                        ApplicationId = app.ApplicationId,
+                        ReviewerUserId = action.ReviewerUserId,
+                        Status = action.Status,
+                        IsPublished = action.IsPublished,
+                        PersonalNote = action.PersonalNote,
+                        ActionDate = action.ActionDate
+                    };
+                }
+                else
+                {
+                    return new ReviewerApplicationActionDto
+                    {
+                        ApplicationId = app.ApplicationId,
+                        ReviewerUserId = null,
+                        Status = "New",
+                        IsPublished = false,
+                        PersonalNote = "n/a",
+                        ActionDate = null
+                    };
+                }
+            }).ToList();
+
+            return Ok(results);
+        }
+    }
+}

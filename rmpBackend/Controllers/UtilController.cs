@@ -271,6 +271,40 @@ namespace rmpBackend.Controllers
         //    await db.SaveChangesAsync();
         //    return Ok(bulkEvent);
         //}
+
+
+
+
+        [HttpGet("jobViaId/{id}")]
+        public async Task<IActionResult> GetJob(int id)
+        {
+            var job = await db.JobOpenings
+                .Where(j=>j.JobId==id)
+                .Include(j => j.JobSkillMaps)
+                .ThenInclude(js => js.Skill)
+                .Select(j => new
+                {
+                    j.JobId,
+                    j.Title,
+                    j.Description,
+                    j.Location,
+                    j.Status,
+                    j.MinExperience,
+                    j.CreatedBy,
+                    j.CreatedAt,
+                    j.UpdatedAt,
+                    j.ClosedReason,
+                    Skills = j.JobSkillMaps.Select(js => new
+                    {
+                        js.SkillId,
+                        js.Skill.SkillName,
+                        js.SkillType
+                    }).ToList()
+                })
+                .ToListAsync();
+
+            return Ok(job);
+        }
     }
 }
 

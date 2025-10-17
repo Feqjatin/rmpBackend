@@ -23,7 +23,6 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<InterviewRoundTemplate> InterviewRoundTemplates { get; set; }
     public virtual DbSet<InterviewInterviewerMap> InterviewInterviewerMaps { get; set; }
-
     public virtual DbSet<InterviewSchedule> InterviewSchedules { get; set; }
 
     public virtual DbSet<JobApplication> JobApplications { get; set; }
@@ -35,6 +34,12 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<JobSkillMap> JobSkillMaps { get; set; }
 
     public virtual DbSet<Permission> Permissions { get; set; }
+
+    public virtual DbSet<ReviewerAction> ReviewerActions { get; set; }
+
+    public virtual DbSet<ReviewerEvaluationCriterion> ReviewerEvaluationCriteria { get; set; }
+
+    public virtual DbSet<ReviewerEvaluationScore> ReviewerEvaluationScores { get; set; }
 
     public virtual DbSet<Role> Roles { get; set; }
 
@@ -155,9 +160,8 @@ public partial class AppDbContext : DbContext
             entity.HasOne(d => d.Job).WithMany(p => p.InterviewRoundTemplates)
                 .HasForeignKey(d => d.JobId)
                 .HasConstraintName("fk_roundtemplate_job");
-
-
         });
+
 
         modelBuilder.Entity<InterviewSchedule>(entity =>
         {
@@ -187,8 +191,11 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.RoundTemplateId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_interviewschedule_roundtemplate");
+
+            // THE .HasMany(...).UsingEntity(...) BLOCK HAS BEEN REMOVED
         });
 
+        // THIS ENTIRE BLOCK REPLACES the one we just deleted
         modelBuilder.Entity<InterviewInterviewerMap>(entity =>
         {
             entity.HasKey(e => new { e.InterviewId, e.InterviewerUserId });
@@ -339,6 +346,75 @@ public partial class AppDbContext : DbContext
                 .HasColumnName("permission_name");
         });
 
+        modelBuilder.Entity<ReviewerAction>(entity =>
+        {
+            entity.HasKey(e => new { e.ApplicationId, e.ReviewerUserId }).HasName("PK__Reviewer__A91A9B26552CAB87");
+
+            entity.ToTable("ReviewerAction");
+
+            entity.Property(e => e.ApplicationId).HasColumnName("application_id");
+            entity.Property(e => e.ReviewerUserId).HasColumnName("reviewer_user_id");
+            entity.Property(e => e.ActionDate)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnName("action_date");
+            entity.Property(e => e.IsPublished).HasColumnName("is_published");
+            entity.Property(e => e.PersonalNote).HasColumnName("personal_note");
+            entity.Property(e => e.Status)
+                .HasMaxLength(50)
+                .HasColumnName("status");
+
+            entity.HasOne(d => d.Application).WithMany(p => p.ReviewerActions)
+                .HasForeignKey(d => d.ApplicationId)
+                .HasConstraintName("fk_action_application");
+
+            entity.HasOne(d => d.ReviewerUser).WithMany(p => p.ReviewerActions)
+                .HasForeignKey(d => d.ReviewerUserId)
+                .HasConstraintName("fk_action_user");
+        });
+
+        modelBuilder.Entity<ReviewerEvaluationCriterion>(entity =>
+        {
+            entity.HasKey(e => e.CriteriaId).HasName("PK__Reviewer__401F949D12048E89");
+
+            entity.Property(e => e.CriteriaId).HasColumnName("criteria_id");
+            entity.Property(e => e.CriteriaName)
+                .HasMaxLength(255)
+                .HasColumnName("criteria_name");
+            entity.Property(e => e.JobId).HasColumnName("job_id");
+            entity.Property(e => e.MaxScore)
+                .HasDefaultValue(10)
+                .HasColumnName("max_score");
+
+            entity.HasOne(d => d.Job).WithMany(p => p.ReviewerEvaluationCriteria)
+                .HasForeignKey(d => d.JobId)
+                .HasConstraintName("fk_criteria_job");
+        });
+
+        modelBuilder.Entity<ReviewerEvaluationScore>(entity =>
+        {
+            entity.HasKey(e => new { e.ApplicationId, e.CriteriaId, e.ReviewerUserId }).HasName("PK__Reviewer__B6E731C6657FC819");
+
+            entity.ToTable("ReviewerEvaluationScore");
+
+            entity.Property(e => e.ApplicationId).HasColumnName("application_id");
+            entity.Property(e => e.CriteriaId).HasColumnName("criteria_id");
+            entity.Property(e => e.ReviewerUserId).HasColumnName("reviewer_user_id");
+            entity.Property(e => e.Score).HasColumnName("score");
+
+            entity.HasOne(d => d.Application).WithMany(p => p.ReviewerEvaluationScores)
+                .HasForeignKey(d => d.ApplicationId)
+                .HasConstraintName("fk_score_application");
+
+            entity.HasOne(d => d.Criteria).WithMany(p => p.ReviewerEvaluationScores)
+                .HasForeignKey(d => d.CriteriaId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_score_criteria");
+
+            entity.HasOne(d => d.ReviewerUser).WithMany(p => p.ReviewerEvaluationScores)
+                .HasForeignKey(d => d.ReviewerUserId)
+                .HasConstraintName("fk_score_user");
+        });
+
         modelBuilder.Entity<Role>(entity =>
         {
             entity.HasKey(e => e.RoleId).HasName("PK__Role__760965CC640F240D");
@@ -485,4 +561,3 @@ public partial class AppDbContext : DbContext
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
 }
-
