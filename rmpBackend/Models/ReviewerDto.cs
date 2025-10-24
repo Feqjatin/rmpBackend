@@ -28,4 +28,18 @@
         public int Total { get; set; }
     }
     
+        public class BulkReviewerActionDto
+        {
+            
+            public List<int> Ids { get; set; }
+            public string Status { get; set; }
+            public string Username { get; set; }
+        }
+    public class UpdateNoteDto
+    {
+        public int Id { get; set; }  
+        public string PersonalNote { get; set; }
+        public string Username { get; set; }
+    }
+
 }

@@ -1,10 +1,12 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using rmpBackend.Models;
+ 
 
 namespace rmpBackend.Controllers
 {
@@ -25,7 +27,7 @@ namespace rmpBackend.Controllers
 
             var assignedJobs = await db.JobReviewerMaps
                 .Where(jrm => jrm.ReviewerUserId == user.UserId)
-                .Include(jrm => jrm.Job) // Include JobOpening to get the title
+                .Include(jrm => jrm.Job)  
                 .Select(jrm => jrm.Job)
                 .ToListAsync();
 
@@ -127,6 +129,133 @@ namespace rmpBackend.Controllers
             }).ToList();
 
             return Ok(results);
+        }
+
+
+
+
+        [HttpPost("bulk-update-status")]
+        public async Task<IActionResult> BulkUpdateApplicationStatus([FromBody] BulkReviewerActionDto req)
+        {
+            if (req == null || req.Ids == null || !req.Ids.Any())
+            {
+                return BadRequest("No application IDs provided.");
+            }
+
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Username == req.Username);
+            if (user == null)
+            {
+                return NotFound("User not found.");
+            }
+
+            var existingActions = await db.ReviewerActions
+                .Where(ra => ra.ReviewerUserId == user.UserId && req.Ids.Contains(ra.ApplicationId))
+                .ToDictionaryAsync(ra => ra.ApplicationId);
+
+            var newActionsToAdd = new List<ReviewerAction>();
+
+            
+            bool isPublishedStatus = req.Status?.Equals("Published", StringComparison.OrdinalIgnoreCase) ?? false;
+            if (isPublishedStatus)
+            {
+                foreach (var appId in req.Ids)
+                {
+                    if (existingActions.TryGetValue(appId, out var actionToUpdate))
+                    {
+
+                 
+                        actionToUpdate.ActionDate = DateTime.UtcNow;
+                        actionToUpdate.IsPublished = true;
+                    }
+                    else
+                    {
+                         return BadRequest("application id not found");
+                    }
+                }
+            }
+            else
+            {
+                foreach (var appId in req.Ids)
+                {
+                    if (existingActions.TryGetValue(appId, out var actionToUpdate))
+                    {
+
+                        actionToUpdate.Status = req.Status;
+                        actionToUpdate.ActionDate = DateTime.UtcNow;
+                        
+                    }
+                    else
+                    {
+
+                        var newAction = new ReviewerAction
+                        {
+                            ApplicationId = appId,
+                            ReviewerUserId = user.UserId,
+                            Status = req.Status,
+                            ActionDate = DateTime.UtcNow,
+                            IsPublished = isPublishedStatus,
+                            PersonalNote = "Bulk update action."
+                        };
+                        newActionsToAdd.Add(newAction);
+                    }
+                }
+            }
+
+            if (newActionsToAdd.Any())
+            {
+                await db.ReviewerActions.AddRangeAsync(newActionsToAdd);
+            }
+
+            await db.SaveChangesAsync();
+
+            return Ok(new { message = $"Successfully processed {req.Ids.Count} applications." });
+        }
+
+
+        [HttpPost("update-note")]
+        public async Task<IActionResult> UpdatePersonalNote([FromBody] UpdateNoteDto req)
+        {
+            if (req == null)
+            {
+                return BadRequest("Invalid request.");
+            }
+
+             
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Username == req.Username);
+            if (user == null)
+            {
+                return NotFound("User not found.");
+            }
+ 
+            var action = await db.ReviewerActions
+                .FirstOrDefaultAsync(ra => ra.ApplicationId == req.Id && ra.ReviewerUserId == user.UserId);
+
+            if (action != null)
+            {
+                
+                action.PersonalNote = req.PersonalNote;
+                action.ActionDate = DateTime.UtcNow;
+            }
+            else
+            { 
+                var newAction = new ReviewerAction
+                {
+                    ApplicationId = req.Id,
+                    ReviewerUserId = user.UserId,
+                    PersonalNote = req.PersonalNote,
+                    ActionDate = DateTime.UtcNow,
+                    Status = "New", 
+                    IsPublished = false 
+                };
+                db.ReviewerActions.Add(newAction);
+                 
+
+            }
+
+             
+            await db.SaveChangesAsync();
+
+            return Ok(new { message = "Note updated successfully." });
         }
     }
 }

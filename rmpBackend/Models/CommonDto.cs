@@ -30,4 +30,25 @@
     {
         public int Id { get; set; }
     }
+    public class ApplicationCommentDto
+    {
+        public int ApplicationId { get; set; }
+        public string Username { get; set; }
+        public string Comment { get; set; }
+        public string Role { get; set; }
+    }
+    public class SaveSkillAssessmentsWithRoleStageDto
+    {
+        public int ApplicationId { get; set; }
+        public string Username { get; set; }
+        public List<SkillAssessmentItemDto> Assessments { get; set; }
+        public string Role { get; set; }  
+        public string Stage { get; set; }  
+    }
+    public class SkillAssessmentItemDto
+    {
+        public int SkillId { get; set; }
+        public decimal? Years { get; set; }
+        public string Comment { get; set; }
+    }
 }

@@ -12,29 +12,87 @@ namespace rmpBackend.Controllers
     [ApiController]
     public class UtilController(AppDbContext db ) : ControllerBase
     {
-        [HttpPost("addSkillAssessment")]
-        public async Task<IActionResult> AddOrUpdateAssessment([FromBody] SkillAssessmentDto req)
-        { 
+      
+        [HttpPost("save-skill-assessments")]  
+        public async Task<IActionResult> SaveSkillAssessmentsWithRoleStage([FromBody] SaveSkillAssessmentsWithRoleStageDto req)
+        {
+             
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Username == req.Username);
+            if (user == null) return NotFound(new { message = "User not found." });
 
-            var assessment = new SkillAssessment
+            
+            var role = await db.Roles.FirstOrDefaultAsync(r => r.RoleName.ToLower() == req.Role.ToLower());
+            if (role == null) return NotFound(new { message = $"Role '{req.Role}' not found." });
+             
+            var candidateId = await db.JobApplications
+                                        .Where(ja => ja.ApplicationId == req.ApplicationId)
+                                        .Select(ja => (int?)ja.CandidateId)  
+                                        .FirstOrDefaultAsync();
+
+            if (candidateId == null) return NotFound(new { message = $"Application with ID {req.ApplicationId} not found." });
+
+
+            
+             
+
+            var newAssessmentsToAdd = new List<SkillAssessment>();
+
+            
+            foreach (var item in req.Assessments)
             {
-                CandidateId = req.CandidateId,
-                SkillId = req.SkillId,
-                ApplicationId = req.ApplicationId,
-                YearsOfExperience = req.YearsOfExperience,
-                AssessedByUserId = req.AssessedByUserId,
-                AssessedInRoleId = req.AssessedInRoleId,
-                Comment = req.Comment,
-                AssessmentDate = DateTime.UtcNow
-            };
+                decimal? yearsExperience = null;
+                if (item.Years.HasValue)  
+                {
+                    yearsExperience = item.Years;
+                }
+                else if (item.Years != null && !string.IsNullOrWhiteSpace(item.Years.ToString()))  
+                {
+                    if (decimal.TryParse(item.Years.ToString(), out decimal parsedYears))
+                    {
+                        yearsExperience = parsedYears;
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Warning: Could not parse years '{item.Years}' for skill {item.SkillId}");
+                    }
+                }
 
-            db.SkillAssessments.Add(assessment);
-            await db.SaveChangesAsync();
+                
+                     
+                    newAssessmentsToAdd.Add(new SkillAssessment
+                    {
+                        ApplicationId = req.ApplicationId,
+                        CandidateId = candidateId.Value, 
+                        SkillId = item.SkillId,
+                        YearsOfExperience = yearsExperience,
+                        Comment = item.Comment,
+                        AssessedByUserId = user.UserId,
+                        AssessedInRoleId = role.RoleId, 
+                        AssessmentDate = DateTime.UtcNow,
+                        Stage = req.Stage 
+                    });
+                
+            }
 
+             
+            if (newAssessmentsToAdd.Any())
+            {
+                await db.SkillAssessments.AddRangeAsync(newAssessmentsToAdd);
+            }
+ 
+            try
+            {
+                await db.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                Console.WriteLine($"Error saving skill assessments: {ex.InnerException?.Message ?? ex.Message}");
+                return StatusCode(500, new { message = "An error occurred while saving assessments." });
+            }
 
-
-            return Ok(new { message = "Skill assessment recorded successfully.", assessmentId = assessment.AssessmentId });
+            return Ok(new { message = "Skill assessments saved successfully." });
         }
+
         [HttpPost("feedback-create")]
         public async Task<IActionResult> CreateFeedback([FromBody] CreateFeedbackDto createDto)
         {
@@ -304,6 +362,56 @@ namespace rmpBackend.Controllers
                 .ToListAsync();
 
             return Ok(job);
+        }
+
+        [HttpPost("save-comment")]
+        public async Task<IActionResult> SaveApplicationComment([FromBody] ApplicationCommentDto req)
+        {
+             
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Username == req.Username);
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found." });
+            }
+
+             
+            var role = await db.Roles.FirstOrDefaultAsync(r => r.RoleName.ToLower() == req.Role.ToLower());
+            if (role == null)
+            {
+                return NotFound(new { message = $"Role '{req.Role}' not found." });
+            }
+
+             
+            var existingComment = await db.ApplicationFeedbacks
+                .FirstOrDefaultAsync(f =>
+                    f.ApplicationId == req.ApplicationId &&
+                    f.UserId == user.UserId &&
+                    f.UserRoleId == role.RoleId);
+
+            if (existingComment != null)
+            {
+                 
+                existingComment.CommentText = req.Comment;
+                existingComment.UpdatedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                
+                var newComment = new ApplicationFeedback
+                {
+                    ApplicationId = req.ApplicationId,
+                    UserId = user.UserId,
+                    UserRoleId = role.RoleId,
+                    CommentText = req.Comment,
+                    FeedbackStage = "Review", 
+                    CreatedAt = DateTime.UtcNow
+                };
+                db.ApplicationFeedbacks.Add(newComment);
+            }
+
+          
+            await db.SaveChangesAsync();
+            return Ok(new { message = "Comment saved successfully." });
         }
     }
 }
