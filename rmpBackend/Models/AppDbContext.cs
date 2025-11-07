@@ -22,7 +22,9 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<Candidate> Candidates { get; set; }
 
     public virtual DbSet<InterviewRoundTemplate> InterviewRoundTemplates { get; set; }
+
     public virtual DbSet<InterviewInterviewerMap> InterviewInterviewerMaps { get; set; }
+
     public virtual DbSet<InterviewSchedule> InterviewSchedules { get; set; }
 
     public virtual DbSet<JobApplication> JobApplications { get; set; }
@@ -162,7 +164,6 @@ public partial class AppDbContext : DbContext
                 .HasConstraintName("fk_roundtemplate_job");
         });
 
-
         modelBuilder.Entity<InterviewSchedule>(entity =>
         {
             entity.HasKey(e => e.InterviewId).HasName("PK__Intervie__141E55522EBD0542");
@@ -192,15 +193,37 @@ public partial class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_interviewschedule_roundtemplate");
 
-            // THE .HasMany(...).UsingEntity(...) BLOCK HAS BEEN REMOVED
+           
         });
-
-        // THIS ENTIRE BLOCK REPLACES the one we just deleted
         modelBuilder.Entity<InterviewInterviewerMap>(entity =>
         {
             entity.HasKey(e => new { e.InterviewId, e.InterviewerUserId });
 
             entity.ToTable("InterviewInterviewerMap");
+
+            entity.HasOne(d => d.Interview)
+                .WithMany(p => p.InterviewInterviewerMaps)
+                .HasForeignKey(d => d.InterviewId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_interviewmap_schedule");
+
+            entity.HasOne(d => d.InterviewerUser)
+                .WithMany(p => p.InterviewInterviewerMaps)
+                .HasForeignKey(d => d.InterviewerUserId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_interviewmap_user");
+        });
+        modelBuilder.Entity<InterviewInterviewerMap>(entity =>
+        { 
+            entity.HasKey(e => new { e.InterviewId, e.InterviewerUserId });
+
+            entity.ToTable("InterviewInterviewerMap");
+
+            
+            entity.Property(e => e.InterviewId).HasColumnName("interview_id");
+            
+            entity.Property(e => e.InterviewerUserId).HasColumnName("interviewer_user_id");
+            
 
             entity.HasOne(d => d.Interview)
                 .WithMany(p => p.InterviewInterviewerMaps)

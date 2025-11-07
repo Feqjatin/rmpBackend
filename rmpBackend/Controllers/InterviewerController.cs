@@ -8,7 +8,7 @@ using System.Linq;
 
 namespace rmpBackend.Controllers
 {
-    [Authorize(Roles = "interviewer")]
+    [Authorize(Roles = "interviewer, admin")]
     [Route("api/[controller]")]
     [ApiController]
     public class InterviewerController(AppDbContext db) : ControllerBase
@@ -31,20 +31,97 @@ namespace rmpBackend.Controllers
             return Ok(schedule);
         }
 
-        [HttpGet("schedule")]
-        public async Task<IActionResult> GetAllSchedules()
-        {
-            return Ok(await db.InterviewSchedules.ToListAsync());
-        }
+    
 
-        [HttpGet("schedule/{id}")]
-        public async Task<IActionResult> GetScheduleById(int id)
+        [HttpGet("schedule/by-user/{userName}")]
+        public async Task<IActionResult> GetSchedulesByUserName(string username)
         {
-            var schedule = await db.InterviewSchedules.FindAsync(id);
-            return schedule == null ? NotFound() : Ok(schedule);
-        }
 
-        [HttpGet("schedule/by-application/{applicationId}")]
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Username == username);
+
+            if (user == null)
+            {
+                return NotFound(username);
+            }
+
+
+            var schedules = await db.InterviewSchedules
+
+                .Include(s => s.RoundTemplate)
+                .Include(s => s.Application.Candidate)
+                .Include(s => s.Application.Job.JobSkillMaps)
+                    .ThenInclude(jsm => jsm.Skill)
+                .Include(s => s.InterviewInterviewerMaps)
+                    .ThenInclude(map => map.InterviewerUser)
+
+
+                .Where(s => s.InterviewInterviewerMaps.Any(map => map.InterviewerUserId == user.UserId))
+                .OrderBy(s => s.ScheduledStartTime)
+                .Select(s => new
+                {
+
+                    InterviewId = s.InterviewId,
+                    Status = s.Status,
+                    ScheduledStartTime = s.ScheduledStartTime,
+                    ScheduledEndTime = s.ScheduledEndTime,
+                    MeetingLink = s.MeetingLink,
+                    Location = s.Location,
+                    applicationId =s.ApplicationId,
+
+                    RoundInfo = new
+                    {
+                        s.RoundTemplate.RoundOrder,
+                        s.RoundTemplate.RoundName,
+                        s.RoundTemplate.RoundType
+                    },
+
+                    CandidateInfo = new
+                    {   s.Application.Candidate.CandidateId,
+                        s.Application.Candidate.Name,
+                        s.Application.Candidate.Email,
+                        s.Application.Candidate.Phone
+                    },
+
+
+                    Interviewers = s.InterviewInterviewerMaps.Select(m => new
+                    {
+                        m.InterviewerUser.Username,
+                        m.InterviewerUser.Email
+                    }).ToList(),
+
+                    JobInfo = new
+                    {
+                        s.Application.Job.JobId,
+                        s.Application.Job.Title,
+                        s.Application.Job.Description,
+                        JobLocation = s.Application.Job.Location,
+                        JobStatus = s.Application.Job.Status,
+                        s.Application.Job.MinExperience,
+                        s.Application.Job.CreatedBy,
+                        s.Application.Job.CreatedAt,
+                        s.Application.Job.UpdatedAt,
+                        s.Application.Job.ClosedReason,
+                        Skills = s.Application.Job.JobSkillMaps.Select(js => new
+                        {
+                            js.SkillId,
+                            js.Skill.SkillName,
+                            js.SkillType
+                        }).ToList()
+                    }
+                })
+                .ToListAsync();
+
+            return Ok(schedules);
+        }
+            //[HttpGet("schedule/{id}")]
+            //public async Task<IActionResult> GetScheduleById(int id)
+            //{
+            //    var schedule = await db.InterviewSchedules.FindAsync(id);
+            //    return schedule == null ? NotFound() : Ok(schedule);
+            //}
+
+
+            [HttpGet("schedule/by-application/{applicationId}")]
         public async Task<IActionResult> GetSchedulesByApplicationId(int applicationId)
         {
             var schedules = await db.InterviewSchedules

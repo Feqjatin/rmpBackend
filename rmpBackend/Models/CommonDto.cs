@@ -51,4 +51,16 @@
         public decimal? Years { get; set; }
         public string Comment { get; set; }
     }
+    public class SkillAssessmentViewDto
+    {
+        public int AssessmentId { get; set; }
+        public int? ApplicationId { get; set; }
+        public string SkillName { get; set; }
+        public decimal? YearsOfExperience { get; set; }
+        public string Comment { get; set; }
+        public string AssessedByUserName { get; set; }
+        public string AssessedInRoleName { get; set; }
+        public string Stage { get; set; }
+        public DateTime AssessmentDate { get; set; }
+    }
 }

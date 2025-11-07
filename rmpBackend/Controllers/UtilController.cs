@@ -92,8 +92,45 @@ namespace rmpBackend.Controllers
 
             return Ok(new { message = "Skill assessments saved successfully." });
         }
+        [HttpGet("getSkillAssessments/{candidateId}")]
+        public async Task<IActionResult> GetSkillAssessmentsForCandidate(int candidateId)
+        {
+         
+            var assessments = await db.SkillAssessments
+              
+                .Where(sa => sa.CandidateId == candidateId)
 
-        [HttpPost("feedback-create")]
+                
+                .Include(sa => sa.Skill)
+                .Include(sa => sa.AssessedByUser)
+                .Include(sa => sa.AssessedInRole)
+ 
+                .OrderByDescending(sa => sa.AssessmentDate)
+ 
+                .Select(sa => new SkillAssessmentViewDto
+                {
+                    AssessmentId = sa.AssessmentId,
+                    ApplicationId = sa.ApplicationId,
+                    SkillName = sa.Skill.SkillName,
+                    YearsOfExperience = sa.YearsOfExperience,
+                    Comment = sa.Comment,
+                    AssessedByUserName = sa.AssessedByUser.Username,
+                    AssessedInRoleName = sa.AssessedInRole.RoleName,
+                    Stage = sa.Stage,
+                    AssessmentDate = sa.AssessmentDate
+                })
+                .ToListAsync();
+
+
+            if (assessments == null)
+            {
+                return Ok(new List<SkillAssessmentViewDto>());
+            }
+
+            return Ok(assessments);
+        }
+
+            [HttpPost("feedback-create")]
         public async Task<IActionResult> CreateFeedback([FromBody] CreateFeedbackDto createDto)
         {
             var feedback = new ApplicationFeedback
@@ -112,13 +149,14 @@ namespace rmpBackend.Controllers
         }
 
          
-        [HttpGet("feedback{id}")]
+        [HttpGet("feedback/{id}")]
         public async Task<IActionResult> GetFeedbackById(int id)
         {
+
             var feedback = await db.ApplicationFeedbacks
                 .Include(f => f.User)
                 .Include(f => f.UserRole)
-                .Where(f => f.FeedbackId == id)
+                .Where(f => f.ApplicationId == id)
                 .Select(f => new FeedbackViewDto
                 {
                     FeedbackId = f.FeedbackId,
@@ -130,11 +168,11 @@ namespace rmpBackend.Controllers
                     CreatedAt = f.CreatedAt,
                     UpdatedAt = f.UpdatedAt
                 })
-                .FirstOrDefaultAsync();
+               .ToListAsync();
 
             if (feedback == null)
             {
-                return NotFound();
+                return NotFound(id);
             }
 
             return Ok(feedback);
@@ -382,20 +420,10 @@ namespace rmpBackend.Controllers
             }
 
              
-            var existingComment = await db.ApplicationFeedbacks
-                .FirstOrDefaultAsync(f =>
-                    f.ApplicationId == req.ApplicationId &&
-                    f.UserId == user.UserId &&
-                    f.UserRoleId == role.RoleId);
+            
 
-            if (existingComment != null)
-            {
-                 
-                existingComment.CommentText = req.Comment;
-                existingComment.UpdatedAt = DateTime.UtcNow;
-            }
-            else
-            {
+            
+            
                 
                 var newComment = new ApplicationFeedback
                 {
@@ -403,11 +431,11 @@ namespace rmpBackend.Controllers
                     UserId = user.UserId,
                     UserRoleId = role.RoleId,
                     CommentText = req.Comment,
-                    FeedbackStage = "Review", 
+                    FeedbackStage = req.Role, 
                     CreatedAt = DateTime.UtcNow
                 };
                 db.ApplicationFeedbacks.Add(newComment);
-            }
+            
 
           
             await db.SaveChangesAsync();
