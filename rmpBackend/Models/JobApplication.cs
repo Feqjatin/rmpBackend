@@ -29,6 +29,8 @@ public partial class JobApplication
 
     public virtual Candidate Candidate { get; set; } = null!;
 
+    public virtual ICollection<CandidateDocument> CandidateDocuments { get; set; } = new List<CandidateDocument>();
+
     public virtual ICollection<InterviewSchedule> InterviewSchedules { get; set; } = new List<InterviewSchedule>();
 
     public virtual JobOpening Job { get; set; } = null!;

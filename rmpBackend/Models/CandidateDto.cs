@@ -57,4 +57,91 @@ namespace rmpBackend.Models
         public string? Comment { get; set; }
         public string? Stage { get; set; }
     }
-}
+ 
+   
+        public class CandidateLoginDto
+        {
+            [Required]
+            public string Email { get; set; }
+            [Required]
+            public string Password { get; set; }
+        }
+ 
+        public class CandidateProfileUpdateDto
+        {
+            public string? Name { get; set; }
+            public string? Phone { get; set; }
+            public string? Address { get; set; }
+            public string? City { get; set; }
+            public string? State { get; set; }
+            public string? ZipCode { get; set; }
+            public string? LinkedinUrl { get; set; }
+            public string? GithubUrl { get; set; }
+            public string? PortfolioUrl { get; set; }
+            public string? ProfileSummary { get; set; }
+
+            //  for updating password
+            public string? NewPassword { get; set; }
+        }
+         
+        public class CandidateEducationDto
+        {
+            [Required]
+            public string Degree { get; set; }
+            [Required]
+            public string Institution { get; set; }
+            public string? FieldOfStudy { get; set; }
+            [Required]
+            public DateOnly StartDate { get; set; }
+            public DateOnly? EndDate { get; set; }
+            public string? Grade { get; set; }
+            public string? Description { get; set; }
+        }
+
+        
+        public class CandidateExperienceDto
+        {
+            [Required]
+            public string JobTitle { get; set; }
+            [Required]
+            public string CompanyName { get; set; }
+            [Required]
+            public DateOnly StartDate { get; set; }
+            public DateOnly? EndDate { get; set; }
+            public bool? IsCurrentJob { get; set; }
+            public string? Description { get; set; }
+            public string? Location { get; set; }
+        }
+
+        
+        public class CandidateSkillDto
+        {
+            [Required]
+            public int SkillId { get; set; }
+            public string? ProficiencyLevel { get; set; }
+        }
+
+      
+        public class CandidateDocumentDto
+        {
+            public int? ApplicationId { get; set; }
+            [Required]
+            public string DocumentType { get; set; } 
+            [Required]
+            public string FilePath { get; set; }
+        }
+
+        
+        public class RescheduleRequestDto
+        {
+            [Required]
+            public int InterviewId { get; set; }
+            [Required]
+            public DateTime RequestedNewStartTime { get; set; }
+            [Required]
+            public DateTime RequestedNewEndTime { get; set; }
+            [Required]
+            public string Reason { get; set; }
+        }
+    }
+

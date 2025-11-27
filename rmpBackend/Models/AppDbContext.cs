@@ -21,11 +21,21 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<Candidate> Candidates { get; set; }
 
+    public virtual DbSet<CandidateDocument> CandidateDocuments { get; set; }
+
+    public virtual DbSet<CandidateEducation> CandidateEducations { get; set; }
+
+    public virtual DbSet<CandidateExperience> CandidateExperiences { get; set; }
+
+    public virtual DbSet<CandidateSkillMap> CandidateSkillMaps { get; set; }
+
+    public virtual DbSet<InterviewRescheduleRequest> InterviewRescheduleRequests { get; set; }
+
     public virtual DbSet<InterviewRoundTemplate> InterviewRoundTemplates { get; set; }
 
-    public virtual DbSet<InterviewInterviewerMap> InterviewInterviewerMaps { get; set; }
-
     public virtual DbSet<InterviewSchedule> InterviewSchedules { get; set; }
+
+    public virtual DbSet<InterviewInterviewerMap> InterviewInterviewerMaps { get; set; }
 
     public virtual DbSet<JobApplication> JobApplications { get; set; }
 
@@ -123,23 +133,182 @@ public partial class AppDbContext : DbContext
             entity.HasIndex(e => e.Email, "UQ__Candidat__AB6E6164A031D789").IsUnique();
 
             entity.Property(e => e.CandidateId).HasColumnName("candidate_id");
+            entity.Property(e => e.Address).HasColumnName("address");
+            entity.Property(e => e.City)
+                .HasMaxLength(100)
+                .HasColumnName("city");
             entity.Property(e => e.CreatedAt)
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnName("created_at");
             entity.Property(e => e.Email)
                 .HasMaxLength(255)
                 .HasColumnName("email");
+            entity.Property(e => e.GithubUrl)
+                .HasMaxLength(255)
+                .HasColumnName("github_url");
+            entity.Property(e => e.LinkedinUrl)
+                .HasMaxLength(255)
+                .HasColumnName("linkedin_url");
             entity.Property(e => e.Name)
                 .HasMaxLength(100)
                 .HasColumnName("name");
+            entity.Property(e => e.PasswordHash)
+                .HasMaxLength(255)
+                .HasColumnName("password_hash");
             entity.Property(e => e.Phone)
                 .HasMaxLength(20)
                 .HasColumnName("phone");
+            entity.Property(e => e.PortfolioUrl)
+                .HasMaxLength(255)
+                .HasColumnName("portfolio_url");
+            entity.Property(e => e.ProfileSummary).HasColumnName("profile_summary");
             entity.Property(e => e.ResumePath).HasColumnName("resume_path");
+            entity.Property(e => e.State)
+                .HasMaxLength(100)
+                .HasColumnName("state");
             entity.Property(e => e.Status)
                 .HasMaxLength(50)
                 .HasColumnName("status");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.ZipCode)
+                .HasMaxLength(20)
+                .HasColumnName("zip_code");
+        });
+
+        modelBuilder.Entity<CandidateDocument>(entity =>
+        {
+            entity.HasKey(e => e.DocumentId).HasName("PK__Candidat__9666E8ACDA0DEE09");
+
+            entity.ToTable("CandidateDocument");
+
+            entity.Property(e => e.DocumentId).HasColumnName("document_id");
+            entity.Property(e => e.ApplicationId).HasColumnName("application_id");
+            entity.Property(e => e.CandidateId).HasColumnName("candidate_id");
+            entity.Property(e => e.DocumentType)
+                .HasMaxLength(50)
+                .HasColumnName("document_type");
+            entity.Property(e => e.FilePath).HasColumnName("file_path");
+            entity.Property(e => e.UploadedAt)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnName("uploaded_at");
+
+            entity.HasOne(d => d.Application).WithMany(p => p.CandidateDocuments)
+                .HasForeignKey(d => d.ApplicationId)
+                .HasConstraintName("fk_document_application");
+
+            entity.HasOne(d => d.Candidate).WithMany(p => p.CandidateDocuments)
+                .HasForeignKey(d => d.CandidateId)
+                .HasConstraintName("fk_document_candidate");
+        });
+
+        modelBuilder.Entity<CandidateEducation>(entity =>
+        {
+            entity.HasKey(e => e.EducationId).HasName("PK__Candidat__45C0CFE777B2FB0E");
+
+            entity.ToTable("CandidateEducation");
+
+            entity.Property(e => e.EducationId).HasColumnName("education_id");
+            entity.Property(e => e.CandidateId).HasColumnName("candidate_id");
+            entity.Property(e => e.Degree)
+                .HasMaxLength(255)
+                .HasColumnName("degree");
+            entity.Property(e => e.Description).HasColumnName("description");
+            entity.Property(e => e.EndDate).HasColumnName("end_date");
+            entity.Property(e => e.FieldOfStudy)
+                .HasMaxLength(255)
+                .HasColumnName("field_of_study");
+            entity.Property(e => e.Grade)
+                .HasMaxLength(50)
+                .HasColumnName("grade");
+            entity.Property(e => e.Institution)
+                .HasMaxLength(255)
+                .HasColumnName("institution");
+            entity.Property(e => e.StartDate).HasColumnName("start_date");
+
+            entity.HasOne(d => d.Candidate).WithMany(p => p.CandidateEducations)
+                .HasForeignKey(d => d.CandidateId)
+                .HasConstraintName("fk_education_candidate");
+        });
+
+        modelBuilder.Entity<CandidateExperience>(entity =>
+        {
+            entity.HasKey(e => e.ExperienceId).HasName("PK__Candidat__EB216AFC1D48120E");
+
+            entity.ToTable("CandidateExperience");
+
+            entity.Property(e => e.ExperienceId).HasColumnName("experience_id");
+            entity.Property(e => e.CandidateId).HasColumnName("candidate_id");
+            entity.Property(e => e.CompanyName)
+                .HasMaxLength(255)
+                .HasColumnName("company_name");
+            entity.Property(e => e.Description).HasColumnName("description");
+            entity.Property(e => e.EndDate).HasColumnName("end_date");
+            entity.Property(e => e.IsCurrentJob)
+                .HasDefaultValue(false)
+                .HasColumnName("is_current_job");
+            entity.Property(e => e.JobTitle)
+                .HasMaxLength(255)
+                .HasColumnName("job_title");
+            entity.Property(e => e.Location)
+                .HasMaxLength(100)
+                .HasColumnName("location");
+            entity.Property(e => e.StartDate).HasColumnName("start_date");
+
+            entity.HasOne(d => d.Candidate).WithMany(p => p.CandidateExperiences)
+                .HasForeignKey(d => d.CandidateId)
+                .HasConstraintName("fk_experience_candidate");
+        });
+
+        modelBuilder.Entity<CandidateSkillMap>(entity =>
+        {
+            entity.HasKey(e => new { e.CandidateId, e.SkillId }).HasName("PK__Candidat__B606E42F55AD1768");
+
+            entity.ToTable("CandidateSkillMap");
+
+            entity.Property(e => e.CandidateId).HasColumnName("candidate_id");
+            entity.Property(e => e.SkillId).HasColumnName("skill_id");
+            entity.Property(e => e.ProficiencyLevel)
+                .HasMaxLength(50)
+                .HasColumnName("proficiency_level");
+
+            entity.HasOne(d => d.Candidate).WithMany(p => p.CandidateSkillMaps)
+                .HasForeignKey(d => d.CandidateId)
+                .HasConstraintName("fk_candidateskill_candidate");
+
+            entity.HasOne(d => d.Skill).WithMany(p => p.CandidateSkillMaps)
+                .HasForeignKey(d => d.SkillId)
+                .HasConstraintName("fk_candidateskill_skill");
+        });
+
+        modelBuilder.Entity<InterviewRescheduleRequest>(entity =>
+        {
+            entity.HasKey(e => e.RequestId).HasName("PK__Intervie__18D3B90F368D57CA");
+
+            entity.ToTable("InterviewRescheduleRequest");
+
+            entity.Property(e => e.RequestId).HasColumnName("request_id");
+            entity.Property(e => e.AdminComment).HasColumnName("admin_comment");
+            entity.Property(e => e.CandidateId).HasColumnName("candidate_id");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.InterviewId).HasColumnName("interview_id");
+            entity.Property(e => e.Reason).HasColumnName("reason");
+            entity.Property(e => e.RequestedNewEndTime).HasColumnName("requested_new_end_time");
+            entity.Property(e => e.RequestedNewStartTime).HasColumnName("requested_new_start_time");
+            entity.Property(e => e.Status)
+                .HasMaxLength(50)
+                .HasDefaultValue("Pending")
+                .HasColumnName("status");
+
+            entity.HasOne(d => d.Candidate).WithMany(p => p.InterviewRescheduleRequests)
+                .HasForeignKey(d => d.CandidateId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("fk_reschedule_candidate");
+
+            entity.HasOne(d => d.Interview).WithMany(p => p.InterviewRescheduleRequests)
+                .HasForeignKey(d => d.InterviewId)
+                .HasConstraintName("fk_reschedule_interview");
         });
 
         modelBuilder.Entity<InterviewRoundTemplate>(entity =>
@@ -193,7 +362,7 @@ public partial class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_interviewschedule_roundtemplate");
 
-           
+            
         });
         modelBuilder.Entity<InterviewInterviewerMap>(entity =>
         {
@@ -213,30 +382,7 @@ public partial class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("fk_interviewmap_user");
         });
-        modelBuilder.Entity<InterviewInterviewerMap>(entity =>
-        { 
-            entity.HasKey(e => new { e.InterviewId, e.InterviewerUserId });
 
-            entity.ToTable("InterviewInterviewerMap");
-
-            
-            entity.Property(e => e.InterviewId).HasColumnName("interview_id");
-            
-            entity.Property(e => e.InterviewerUserId).HasColumnName("interviewer_user_id");
-            
-
-            entity.HasOne(d => d.Interview)
-                .WithMany(p => p.InterviewInterviewerMaps)
-                .HasForeignKey(d => d.InterviewId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("fk_interviewmap_schedule");
-
-            entity.HasOne(d => d.InterviewerUser)
-                .WithMany(p => p.InterviewInterviewerMaps)
-                .HasForeignKey(d => d.InterviewerUserId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("fk_interviewmap_user");
-        });
 
         modelBuilder.Entity<JobApplication>(entity =>
         {

@@ -11,6 +11,8 @@ public partial class Skill
 
     public string? Description { get; set; }
 
+    public virtual ICollection<CandidateSkillMap> CandidateSkillMaps { get; set; } = new List<CandidateSkillMap>();
+
     public virtual ICollection<JobSkillMap> JobSkillMaps { get; set; } = new List<JobSkillMap>();
 
     public virtual ICollection<SkillAssessment> SkillAssessments { get; set; } = new List<SkillAssessment>();
