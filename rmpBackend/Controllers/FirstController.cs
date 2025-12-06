@@ -88,6 +88,77 @@ namespace rmpBackend.Controllers
             await db.SaveChangesAsync();
             return Ok(user);
         }
+
+        [HttpPost("signUpCandidate")]
+        public async Task<IActionResult> signUpCandidate([FromBody] CandidateProfileCreateDto req)
+        {
+            var candidate = await db.Candidates.FirstOrDefaultAsync(u => u.Email == req.Email);
+            if (candidate != null)
+            {
+                return BadRequest("Email is taken");
+            }
+
+            var newCandidate = new Candidate
+            {
+                Name = req.Name,
+                Email = req.Email,
+                PasswordHash= req.PasswordHash,
+                Phone = req.Phone,
+                CreatedAt = DateTime.Now,
+                UpdatedAt = DateTime.Now,
+                Address = req.Address,
+                City = req.City,
+                State = req.State,
+                ZipCode = req.ZipCode,
+                LinkedinUrl = req.LinkedinUrl,
+                GithubUrl = req.GithubUrl,  
+                PortfolioUrl = req.PortfolioUrl,
+                ProfileSummary = req.ProfileSummary,
+            };
+            db.Candidates.Add(newCandidate);
+            await db.SaveChangesAsync();
+            return Ok(newCandidate);
+
+        }
+        [HttpPost("loginCandidate")]
+        public async Task<IActionResult> loginCandidate([FromBody] CandidateLoginDto req)
+        {
+            var candidate = await db.Candidates.FirstOrDefaultAsync(c => c.Email == req.Email);
+            if (candidate== null)
+            {
+                return BadRequest("email not found");
+            }
+            if (req.Password == null || req.Password != candidate.PasswordHash)
+            {
+                return BadRequest(candidate);
+            }
+            else
+            {
+                var authClaims = new List<Claim>
+                        {
+                            new Claim(JwtRegisteredClaimNames.Sub, candidate.CandidateId.ToString()),
+                            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                        };
+
+                var token = new JwtSecurityToken(
+                   issuer: _configuration["Jwt:Issuer"],
+                   expires: DateTime.Now.AddMinutes(double.Parse(_configuration["Jwt:ExpiryMinutes"]!)),
+                   claims: authClaims,
+                   signingCredentials: new SigningCredentials(
+                   new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)),
+                   SecurityAlgorithms.HmacSha256)
+                   );
+
+                Role[] roles = {
+                                new Role { RoleId = 1000, RoleName = "candidate" }
+                            };
+
+
+                return Ok(new { token = new JwtSecurityTokenHandler().WriteToken(token), username = candidate.Name, userRoles = roles,candidateId=candidate.CandidateId});
+            }
+
+        }
+
         [HttpGet("job-all")]
         public async Task<IActionResult> GetAllJobs()
         {

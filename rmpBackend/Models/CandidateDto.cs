@@ -66,8 +66,28 @@ namespace rmpBackend.Models
             [Required]
             public string Password { get; set; }
         }
+
+
+
+    public class CandidateProfileCreateDto
+    {
+
+        public string Name { get; set; }
+        public string? Phone { get; set; }
+        public string Email { get; set; }
+        public string PasswordHash { get; set; }
+        public string? Address { get; set; }
+        public string? City { get; set; }
+        public string? State { get; set; }
+        public string? ZipCode { get; set; }
+        public string? LinkedinUrl { get; set; }
+        public string? GithubUrl { get; set; }
+        public string? PortfolioUrl { get; set; }
+        public string? ProfileSummary { get; set; }
  
-        public class CandidateProfileUpdateDto
+    }
+
+    public class CandidateProfileUpdateDto
         {
             public string? Name { get; set; }
             public string? Phone { get; set; }
@@ -143,5 +163,18 @@ namespace rmpBackend.Models
             [Required]
             public string Reason { get; set; }
         }
+    public class RescheduleRequestResponseDto
+    {
+        public int RequestId { get; set; }
+        public int InterviewId { get; set; }
+        public int CandidateId { get; set; }
+        public DateTime RequestedNewStartTime { get; set; }
+        public DateTime RequestedNewEndTime { get; set; }
+        public string Reason { get; set; }
+        public string Status { get; set; }
+        public DateTime? CreatedAt { get; set; }
     }
+
+
+}
 

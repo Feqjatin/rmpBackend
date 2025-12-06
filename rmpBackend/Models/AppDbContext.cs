@@ -370,6 +370,12 @@ public partial class AppDbContext : DbContext
 
             entity.ToTable("InterviewInterviewerMap");
 
+            entity.Property(e => e.InterviewId)
+                .HasColumnName("interview_id");   
+
+            entity.Property(e => e.InterviewerUserId)
+                .HasColumnName("interviewer_user_id"); 
+
             entity.HasOne(d => d.Interview)
                 .WithMany(p => p.InterviewInterviewerMaps)
                 .HasForeignKey(d => d.InterviewId)
@@ -382,6 +388,7 @@ public partial class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("fk_interviewmap_user");
         });
+
 
 
         modelBuilder.Entity<JobApplication>(entity =>

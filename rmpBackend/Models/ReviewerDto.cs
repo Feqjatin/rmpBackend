@@ -9,6 +9,7 @@
     public class ReviewerApplicationActionDto
     {
         public int ApplicationId { get; set; }
+        public int CandidateId { get; set; }
         public int? ReviewerUserId { get; set; }
         public string Status { get; set; }
         public bool IsPublished { get; set; }

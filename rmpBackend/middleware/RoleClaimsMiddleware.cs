@@ -43,8 +43,34 @@ namespace rmpBackend.middleware
                     }
                 }
             }
+            if (context.User.Identity?.IsAuthenticated == true)
+            {
+                var id = context.User.Claims
+                    .FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier || c.Type == "sub")
+                    ?.Value;
+                if (!string.IsNullOrEmpty(id))
+                {
+                    var id2 = int.Parse(id);
+                    var candidate = db.Candidates.Where(c => c.CandidateId == id2).FirstOrDefault();
+                    if (candidate != null)
+                    {
 
-            await _next(context);
+                        var claims = new List<Claim>
+                        {
+                            new Claim(ClaimTypes.Role, "candidate")
+                        };
+
+                        context.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "jwt-refresh"));
+
+
+                    }
+                    
+                    
+                }
+            }
+
+
+                await _next(context);
         }
     }
 }

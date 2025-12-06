@@ -12,32 +12,7 @@ namespace rmpBackend.Controllers
     public class CandidateController(AppDbContext db) : ControllerBase
     {
 
-        [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] CandidateLoginDto loginDto)
-        {
-            var candidate = await db.Candidates
-                .FirstOrDefaultAsync(c => c.Email == loginDto.Email);
-
-            if (candidate == null)
-            {
-                return Unauthorized("Invalid email.");
-            }
-
-             
-            if (candidate.PasswordHash != loginDto.Password)
-            {
-                return Unauthorized("Invalid password.");
-            }
-
-            
-            return Ok(new
-            {
-                candidate.CandidateId,
-                candidate.Name,
-                candidate.Email,
-                Message = "Login successful"
-            });
-        }
+       
 
         [HttpPost("update-password/{candidateId}")]
         public async Task<IActionResult> UpdatePassword(int candidateId, [FromBody] string newPassword)
@@ -53,19 +28,127 @@ namespace rmpBackend.Controllers
         }
 
 
-         
 
-
+ 
         [HttpGet("profile/{candidateId}")]
         public async Task<IActionResult> GetProfile(int candidateId)
         {
             var candidate = await db.Candidates
-                .Include(c => c.CandidateEducations)
-                .Include(c => c.CandidateExperiences)
-                .Include(c => c.CandidateSkillMaps).ThenInclude(csm => csm.Skill)
-                .FirstOrDefaultAsync(c => c.CandidateId == candidateId);
+                .Where(c => c.CandidateId == candidateId)
+                .Select(c => new
+                {
+                    c.CandidateId,
+                    c.Name,
+                    c.Email,
+                    c.Phone,
+                    c.ResumePath,
+                    c.Status,
+                    c.CreatedAt,
+                    c.UpdatedAt,
+                    c.PasswordHash,
+                    c.Address,
+                    c.City,
+                    c.State,
+                    c.ZipCode,
+                    c.LinkedinUrl,
+                    c.GithubUrl,
+                    c.PortfolioUrl,
+                    c.ProfileSummary,
 
-            if (candidate == null) return NotFound("Candidate not found.");
+                    candidateDocuments = c.CandidateDocuments.Select(d => new
+                    {
+                        d.DocumentId,
+                        d.CandidateId,
+                        d.ApplicationId,
+                        d.DocumentType,
+                        d.FilePath,
+                        d.UploadedAt
+                    }).ToList(),
+
+                    candidateEducations = c.CandidateEducations.Select(e => new
+                    {
+                        e.EducationId,
+                        e.CandidateId,
+                        e.Degree,
+                        e.Institution,
+                        e.FieldOfStudy,
+                        e.StartDate,
+                        e.EndDate,
+                        e.Grade,
+                        e.Description
+                    }).ToList(),
+
+                    candidateExperiences = c.CandidateExperiences.Select(ex => new
+                    {
+                        ex.ExperienceId,
+                        ex.CandidateId,
+                        ex.JobTitle,
+                        ex.CompanyName,
+                        ex.StartDate,
+                        ex.EndDate,
+                        ex.IsCurrentJob,
+                        ex.Description,
+                        ex.Location
+                    }).ToList(),
+
+                    candidateSkillMaps = c.CandidateSkillMaps.Select(sm => new
+                    {
+                        sm.CandidateId,
+                        sm.SkillId,
+                        sm.ProficiencyLevel,
+                        Skill = new
+                        {
+                            sm.Skill.SkillId,
+                            sm.Skill.SkillName
+                        }
+                    }).ToList(),
+
+                    interviewRescheduleRequests = c.InterviewRescheduleRequests.Select(r => new
+                    {
+                        r.RequestId,
+                        r.InterviewId,
+                        r.CandidateId,
+                        r.RequestedNewStartTime,
+                        r.RequestedNewEndTime,
+                        r.Reason,
+                        r.Status,
+                        r.AdminComment,
+                        r.CreatedAt
+                    }).ToList(),
+
+                    jobApplications = c.JobApplications
+                        .Select(j => new
+                        {
+                            j.ApplicationId,
+                            j.CandidateId,
+                            j.JobId,
+                            j.AppliedAt,
+                            j.UpdatedAt,
+                            j.ApplicationStatus,
+
+                            
+                            Interview = j.ApplicationStatus.ToLower() == "interview"
+                                ? db.InterviewSchedules
+                                    .Where(i => i.ApplicationId == j.ApplicationId)
+                                    .Select(i => new
+                                    {
+                                        i.InterviewId,
+                                        MeetingLink = i.MeetingLink,
+                                        i.ScheduledStartTime,
+                                        i.ScheduledEndTime,
+                                    })
+                                    .FirstOrDefault()
+                                : null
+                        })
+                        .ToList(),
+
+
+
+                })
+                .FirstOrDefaultAsync();
+
+            if (candidate == null)
+                return NotFound("Candidate not found.");
 
             return Ok(candidate);
         }
@@ -99,7 +182,9 @@ namespace rmpBackend.Controllers
         }
 
 
-       
+
+
+      
 
         [HttpPost("education/{candidateId}")]
         public async Task<IActionResult> AddEducation(int candidateId, [FromBody] CandidateEducationDto dto)
@@ -115,10 +200,26 @@ namespace rmpBackend.Controllers
                 Grade = dto.Grade,
                 Description = dto.Description
             };
+
             db.CandidateEducations.Add(education);
             await db.SaveChangesAsync();
-            return Ok(education);
+
+            var result = new
+            {
+                education.EducationId,
+                education.CandidateId,
+                education.Degree,
+                education.Institution,
+                education.FieldOfStudy,
+                education.StartDate,
+                education.EndDate,
+                education.Grade,
+                education.Description
+            };
+
+            return Ok(result);
         }
+
 
         [HttpPut("education/{educationId}")]
         public async Task<IActionResult> UpdateEducation(int educationId, [FromBody] CandidateEducationDto dto)
@@ -135,8 +236,23 @@ namespace rmpBackend.Controllers
             edu.Description = dto.Description;
 
             await db.SaveChangesAsync();
-            return Ok(edu);
+
+            var result = new
+            {
+                edu.EducationId,
+                edu.CandidateId,
+                edu.Degree,
+                edu.Institution,
+                edu.FieldOfStudy,
+                edu.StartDate,
+                edu.EndDate,
+                edu.Grade,
+                edu.Description
+            };
+
+            return Ok(result);
         }
+
 
         [HttpDelete("education/{educationId}")]
         public async Task<IActionResult> DeleteEducation(int educationId)
@@ -149,7 +265,7 @@ namespace rmpBackend.Controllers
         }
 
 
-      
+
 
         [HttpPost("experience/{candidateId}")]
         public async Task<IActionResult> AddExperience(int candidateId, [FromBody] CandidateExperienceDto dto)
@@ -165,11 +281,25 @@ namespace rmpBackend.Controllers
                 Description = dto.Description,
                 Location = dto.Location
             };
+
             db.CandidateExperiences.Add(exp);
             await db.SaveChangesAsync();
-            return Ok(exp);
-        }
 
+            var result = new
+            {
+                exp.ExperienceId,
+                exp.CandidateId,
+                exp.JobTitle,
+                exp.CompanyName,
+                exp.StartDate,
+                exp.EndDate,
+                exp.IsCurrentJob,
+                exp.Description,
+                exp.Location
+            };
+
+            return Ok(result);
+        }
         [HttpPut("experience/{experienceId}")]
         public async Task<IActionResult> UpdateExperience(int experienceId, [FromBody] CandidateExperienceDto dto)
         {
@@ -185,8 +315,24 @@ namespace rmpBackend.Controllers
             exp.Location = dto.Location;
 
             await db.SaveChangesAsync();
-            return Ok(exp);
+
+            var result = new
+            {
+                exp.ExperienceId,
+                exp.CandidateId,
+                exp.JobTitle,
+                exp.CompanyName,
+                exp.StartDate,
+                exp.EndDate,
+                exp.IsCurrentJob,
+                exp.Description,
+                exp.Location
+            };
+
+            return Ok(result);
         }
+
+
 
         [HttpDelete("experience/{experienceId}")]
         public async Task<IActionResult> DeleteExperience(int experienceId)
@@ -198,23 +344,36 @@ namespace rmpBackend.Controllers
             return Ok("Experience deleted.");
         }
 
+        [HttpGet("skill-all")]
+        public async Task<IActionResult> GetAllSkills()
+        {
+            var skills = await db.Skills
+                .Select(s => new {
+                    s.SkillId,
+                    s.SkillName,
+                    s.Description
+                })
+                .ToListAsync();
 
-        
+            return Ok(skills);
+        }
+
 
         [HttpPost("skill/{candidateId}")]
         public async Task<IActionResult> AddSkill(int candidateId, [FromBody] CandidateSkillDto dto)
         {
              
             var skillExists = await db.Skills.AnyAsync(s => s.SkillId == dto.SkillId);
-            if (!skillExists) return NotFound("Skill ID not found in master list.");
+            if (!skillExists)
+                return NotFound("Skill ID not found in master list.");
 
-            
+             
             var existingMap = await db.CandidateSkillMaps
                 .FirstOrDefaultAsync(m => m.CandidateId == candidateId && m.SkillId == dto.SkillId);
 
             if (existingMap != null)
             {
-                existingMap.ProficiencyLevel = dto.ProficiencyLevel;  
+                existingMap.ProficiencyLevel = dto.ProficiencyLevel;
             }
             else
             {
@@ -244,7 +403,7 @@ namespace rmpBackend.Controllers
             return Ok("Skill removed.");
         }
 
- 
+
 
         [HttpPost("document/{candidateId}")]
         public async Task<IActionResult> UploadDocument(int candidateId, [FromBody] CandidateDocumentDto dto)
@@ -262,32 +421,61 @@ namespace rmpBackend.Controllers
             if (dto.DocumentType.ToLower() == "resume")
             {
                 var candidate = await db.Candidates.FindAsync(candidateId);
-                if (candidate != null) candidate.ResumePath = dto.FilePath;
+                if (candidate != null)
+                    candidate.ResumePath = dto.FilePath;
             }
 
             db.CandidateDocuments.Add(doc);
             await db.SaveChangesAsync();
-            return Ok(doc);
+
+            var result = new
+            {
+                doc.DocumentId,
+                doc.CandidateId,
+                doc.ApplicationId,
+                doc.DocumentType,
+                doc.FilePath,
+                doc.UploadedAt
+            };
+
+            return Ok(result);
         }
+
 
         [HttpGet("document/{candidateId}")]
         public async Task<IActionResult> GetDocuments(int candidateId)
         {
-            var docs = await db.CandidateDocuments.Where(d => d.CandidateId == candidateId).ToListAsync();
+            var docs = await db.CandidateDocuments
+                .Where(d => d.CandidateId == candidateId)
+                .Select(d => new
+                {
+                    d.DocumentId,
+                    d.CandidateId,
+                    d.ApplicationId,
+                    d.DocumentType,
+                    d.FilePath,
+                    d.UploadedAt
+                })
+                .ToListAsync();
+
             return Ok(docs);
         }
+
 
         [HttpDelete("document/{documentId}")]
         public async Task<IActionResult> DeleteDocument(int documentId)
         {
             var doc = await db.CandidateDocuments.FindAsync(documentId);
-            if (doc == null) return NotFound();
+            if (doc == null) return NotFound("Document not found.");
+
             db.CandidateDocuments.Remove(doc);
             await db.SaveChangesAsync();
-            return Ok("Document deleted.");
+
+            return Ok("Document deleted successfully.");
         }
 
- 
+
+
 
         [HttpPost("reschedule-request")]
         public async Task<IActionResult> CreateRescheduleRequest([FromBody] RescheduleRequestDto dto, [FromQuery] int candidateId)
@@ -295,12 +483,9 @@ namespace rmpBackend.Controllers
             var interview = await db.InterviewSchedules.FindAsync(dto.InterviewId);
             if (interview == null) return NotFound("Interview not found.");
 
-           
             var application = await db.JobApplications.FindAsync(interview.ApplicationId);
             if (application == null || application.CandidateId != candidateId)
-            {
                 return BadRequest("Invalid interview for this candidate.");
-            }
 
             var request = new InterviewRescheduleRequest
             {
@@ -315,8 +500,22 @@ namespace rmpBackend.Controllers
 
             db.InterviewRescheduleRequests.Add(request);
             await db.SaveChangesAsync();
-            return Ok(request);
+
+            var response = new RescheduleRequestResponseDto
+            {
+                RequestId = request.RequestId,
+                InterviewId = request.InterviewId,
+                CandidateId = request.CandidateId,
+                RequestedNewStartTime = request.RequestedNewStartTime,
+                RequestedNewEndTime = request.RequestedNewEndTime,
+                Reason = request.Reason,
+                Status = request.Status,
+                CreatedAt = request.CreatedAt
+            };
+
+            return Ok(response);
         }
+
 
         [HttpGet("reschedule-request/{candidateId}")]
         public async Task<IActionResult> GetRescheduleRequests(int candidateId)
@@ -324,9 +523,22 @@ namespace rmpBackend.Controllers
             var requests = await db.InterviewRescheduleRequests
                 .Where(r => r.CandidateId == candidateId)
                 .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new RescheduleRequestResponseDto
+                {
+                    RequestId = r.RequestId,
+                    InterviewId = r.InterviewId,
+                    CandidateId = r.CandidateId,
+                    RequestedNewStartTime = r.RequestedNewStartTime,
+                    RequestedNewEndTime = r.RequestedNewEndTime,
+                    Reason = r.Reason,
+                    Status = r.Status,
+                    CreatedAt = r.CreatedAt
+                })
                 .ToListAsync();
+
             return Ok(requests);
         }
+
 
         [HttpDelete("reschedule-request/{requestId}")]
         public async Task<IActionResult> DeleteRescheduleRequest(int requestId)

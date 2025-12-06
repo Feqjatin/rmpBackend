@@ -86,7 +86,8 @@ namespace rmpBackend.Controllers
         {
             var applications = await db.JobApplications
                 .Where(ja => ja.JobId == jobId)
-                .Select(ja => new { ja.ApplicationId })
+                .Select(ja => new { ja.ApplicationId,ja.CandidateId})
+                 
                 .ToListAsync();
 
             if (!applications.Any())
@@ -107,6 +108,7 @@ namespace rmpBackend.Controllers
                     return new ReviewerApplicationActionDto
                     {
                         ApplicationId = app.ApplicationId,
+                        CandidateId=app.CandidateId,
                         ReviewerUserId = action.ReviewerUserId,
                         Status = action.Status,
                         IsPublished = action.IsPublished,
@@ -119,6 +121,7 @@ namespace rmpBackend.Controllers
                     return new ReviewerApplicationActionDto
                     {
                         ApplicationId = app.ApplicationId,
+                        CandidateId = app.CandidateId,
                         ReviewerUserId = null,
                         Status = "New",
                         IsPublished = false,
