@@ -30,14 +30,14 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<CandidateSkillMap> CandidateSkillMaps { get; set; }
 
     public virtual DbSet<InterviewRescheduleRequest> InterviewRescheduleRequests { get; set; }
-
+    public virtual DbSet<InterviewInterviewerMap> InterviewInterviewerMaps { get; set; }
     public virtual DbSet<InterviewRoundTemplate> InterviewRoundTemplates { get; set; }
 
     public virtual DbSet<InterviewSchedule> InterviewSchedules { get; set; }
 
-    public virtual DbSet<InterviewInterviewerMap> InterviewInterviewerMaps { get; set; }
-
     public virtual DbSet<JobApplication> JobApplications { get; set; }
+
+    public virtual DbSet<JobCandidateMatchMap> JobCandidateMatchMaps { get; set; }
 
     public virtual DbSet<JobOpening> JobOpenings { get; set; }
 
@@ -362,7 +362,7 @@ public partial class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_interviewschedule_roundtemplate");
 
-            
+          
         });
         modelBuilder.Entity<InterviewInterviewerMap>(entity =>
         {
@@ -388,8 +388,6 @@ public partial class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("fk_interviewmap_user");
         });
-
-
 
         modelBuilder.Entity<JobApplication>(entity =>
         {
@@ -426,6 +424,27 @@ public partial class AppDbContext : DbContext
             entity.HasOne(d => d.Job).WithMany(p => p.JobApplications)
                 .HasForeignKey(d => d.JobId)
                 .HasConstraintName("fk_application_job");
+        });
+
+        modelBuilder.Entity<JobCandidateMatchMap>(entity =>
+        {
+            entity.HasKey(e => new { e.CandidateId, e.JobId });
+
+            entity.ToTable("JobCandidateMatchMap");
+
+            entity.Property(e => e.CandidateId).HasColumnName("candidateId");
+            entity.Property(e => e.JobId).HasColumnName("jobId");
+            entity.Property(e => e.Rank).HasColumnName("rank");
+
+            entity.HasOne(d => d.Candidate).WithMany(p => p.JobCandidateMatchMaps)
+                .HasForeignKey(d => d.CandidateId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_JobCandidateMatchMap_Candidate");
+
+            entity.HasOne(d => d.Job).WithMany(p => p.JobCandidateMatchMaps)
+                .HasForeignKey(d => d.JobId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_JobCandidateMatchMap_Job");
         });
 
         modelBuilder.Entity<JobOpening>(entity =>
@@ -473,6 +492,7 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.AssignedAt)
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnName("assigned_at");
+            entity.Property(e => e.TotalApplicationReviewed).HasColumnName("total_application_reviewed");
 
             entity.HasOne(d => d.Job).WithMany(p => p.JobReviewerMaps)
                 .HasForeignKey(d => d.JobId)

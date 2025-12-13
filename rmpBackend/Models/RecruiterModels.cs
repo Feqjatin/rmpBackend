@@ -21,6 +21,7 @@ namespace rmpBackend.Models
         public string? Description { get; set; }
         public string? Location { get; set; }
         public string? Status { get; set; }
+        public string? ClosedReason { get; set; }
         public int? MinExperience { get; set; }
         public List<JobSkillDto> Skills { get; set; } = new();
     }
@@ -54,6 +55,23 @@ namespace rmpBackend.Models
     {
         public int SkillId { get; set; }
     }
+    public class CreateRoundTemplateDto
+    {
+        public int JobId { get; set; }
+        public int RoundOrder { get; set; }
+        public string RoundType { get; set; }
+        public string RoundName { get; set; }
+        public string? Description { get; set; }
+    }
+    public class UpdateRoundTemplateDto
+    {
+        public int RoundTemplateId { get; set; }
+        public int JobId { get; set; }
+        public int RoundOrder { get; set; }
+        public string RoundType { get; set; }
+        public string RoundName { get; set; }
+        public string? Description { get; set; }
+    }
 
-    
+
 }

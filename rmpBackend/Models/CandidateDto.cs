@@ -100,7 +100,7 @@ namespace rmpBackend.Models
             public string? PortfolioUrl { get; set; }
             public string? ProfileSummary { get; set; }
 
-            //  for updating password
+            
             public string? NewPassword { get; set; }
         }
          

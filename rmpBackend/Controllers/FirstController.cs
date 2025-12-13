@@ -7,12 +7,13 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using rmpBackend.Models;
+using rmpBackend.Services;
 
 namespace rmpBackend.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class firstController(AppDbContext db, IConfiguration _configuration) : ControllerBase
+    public class firstController(AppDbContext db, IConfiguration _configuration, RankingService rankingService) : ControllerBase
     {
         [HttpGet("checkServer")]
         public List<string> getDummy()
@@ -117,6 +118,7 @@ namespace rmpBackend.Controllers
             };
             db.Candidates.Add(newCandidate);
             await db.SaveChangesAsync();
+            await rankingService.UpdateForExistingCandidate(newCandidate.CandidateId);
             return Ok(newCandidate);
 
         }

@@ -31,6 +31,8 @@ public partial class JobOpening
 
     public virtual ICollection<JobApplication> JobApplications { get; set; } = new List<JobApplication>();
 
+    public virtual ICollection<JobCandidateMatchMap> JobCandidateMatchMaps { get; set; } = new List<JobCandidateMatchMap>();
+
     public virtual ICollection<JobReviewerMap> JobReviewerMaps { get; set; } = new List<JobReviewerMap>();
 
     public virtual ICollection<JobSkillMap> JobSkillMaps { get; set; } = new List<JobSkillMap>();

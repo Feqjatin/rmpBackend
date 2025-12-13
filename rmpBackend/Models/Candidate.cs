@@ -51,5 +51,7 @@ public partial class Candidate
 
     public virtual ICollection<JobApplication> JobApplications { get; set; } = new List<JobApplication>();
 
+    public virtual ICollection<JobCandidateMatchMap> JobCandidateMatchMaps { get; set; } = new List<JobCandidateMatchMap>();
+
     public virtual ICollection<SkillAssessment> SkillAssessments { get; set; } = new List<SkillAssessment>();
 }

@@ -4,13 +4,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using rmpBackend.middleware;
 using rmpBackend.Models;
+using rmpBackend.Services;
 
 
 var builder = WebApplication.CreateBuilder(args);
  
 
 builder.Services.AddControllers();
- 
+builder.Services.AddScoped<RankingService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

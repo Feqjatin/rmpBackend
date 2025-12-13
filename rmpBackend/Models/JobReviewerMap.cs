@@ -11,6 +11,8 @@ public partial class JobReviewerMap
 
     public DateTime AssignedAt { get; set; }
 
+    public int TotalApplicationReviewed { get; set; }
+
     public virtual JobOpening Job { get; set; } = null!;
 
     public virtual User ReviewerUser { get; set; } = null!;

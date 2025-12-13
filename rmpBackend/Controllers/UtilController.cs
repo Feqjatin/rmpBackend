@@ -4,13 +4,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 using rmpBackend.Models;
+using rmpBackend.Services;
 
 namespace rmpBackend.Controllers
 {
     [Authorize(Roles = "recruiter, admin, reviewer")]
     [Route("api/[controller]")]
     [ApiController]
-    public class UtilController(AppDbContext db ) : ControllerBase
+    public class UtilController(AppDbContext db, RankingService rankingService) : ControllerBase
     {
       
         [HttpPost("save-skill-assessments")]  
@@ -89,7 +90,7 @@ namespace rmpBackend.Controllers
                 Console.WriteLine($"Error saving skill assessments: {ex.InnerException?.Message ?? ex.Message}");
                 return StatusCode(500, new { message = "An error occurred while saving assessments." });
             }
-
+            await rankingService.UpdateForExistingCandidate(candidateId.Value);
             return Ok(new { message = "Skill assessments saved successfully." });
         }
         [HttpGet("getSkillAssessments/{candidateId}")]
@@ -237,136 +238,6 @@ namespace rmpBackend.Controllers
         }
 
 
-        [HttpPost("updateForNewJob")]
-        public async Task<IActionResult> UpdateForNewJob([FromBody] JobMatchingRequestDto req)
-        {
-            var allCandidateIds = await db.Candidates.Select(c => c.CandidateId).ToListAsync();
-            foreach (var candidateId in allCandidateIds)
-            {
-                await CalculateAndStoreRank(req.Id, candidateId);
-            }
-            return Ok($"Ranking complete for new job {req.Id} against {allCandidateIds.Count} candidates.");
-        }
-
-        [HttpPost("updateForExistingJob")]
-        public async Task<IActionResult> UpdateForExistingJob([FromBody] JobMatchingRequestDto req)
-        {
-
-            var existingApplications = db.JobApplications.Where(ja => ja.JobId == req.Id);
-            db.JobApplications.RemoveRange(existingApplications);
-            await db.SaveChangesAsync();
-
-            return await UpdateForNewJob(req);
-        }
-
-         
-        [HttpPost("updateForNewCandidate")]
-        public async Task<IActionResult> UpdateForNewCandidate([FromBody] JobMatchingRequestDto req)
-        {
-            var allJobIds = await db.JobOpenings.Where(j => j.Status == "Open").Select(j => j.JobId).ToListAsync();
-            foreach (var jobId in allJobIds)
-            {
-                await CalculateAndStoreRank(jobId, req.Id);
-            }
-            return Ok($"Ranking complete for new candidate {req.Id} against {allJobIds.Count} open jobs.");
-        }
-
-         
-        [HttpPost("updateForExistingCandidate")]
-        public async Task<IActionResult> UpdateForExistingCandidate([FromBody] JobMatchingRequestDto req)
-        {
-             
-            var existingApplications = db.JobApplications.Where(ja => ja.CandidateId == req.Id);
-            db.JobApplications.RemoveRange(existingApplications);
-            await db.SaveChangesAsync();
-
-           
-            return await UpdateForNewCandidate(req);
-        }
-
-
-      
-        private async Task CalculateAndStoreRank(int jobId, int candidateId)
-        { 
-            const decimal requiredSkillWeight = 0.70m;
-            const decimal preferredSkillWeight = 0.30m;
-            const decimal experienceWeight = 0.6m;
-            const decimal sentimentWeight = 0.4m;
- 
-            var jobSkills = await db.JobSkillMaps
-                .Where(jsm => jsm.JobId == jobId)
-                .ToListAsync();
-
-            var candidateAssessments = await db.SkillAssessments
-                .Where(sa => sa.CandidateId == candidateId)
-                .ToListAsync();
-
-            if (!jobSkills.Any()) return;  
-
-            decimal totalRank = 0;
-            decimal totalWeight = 0;
- 
-            foreach (var jobSkill in jobSkills)
-            {
-                var matchingAssessments = candidateAssessments.Where(ca => ca.SkillId == jobSkill.SkillId).ToList();
-                decimal skillScore = 0;
-
-                if (matchingAssessments.Any())
-                {
-                     
-                    decimal avgExperience = matchingAssessments.Average(m => m.YearsOfExperience ?? 0);
-                    decimal avgSentiment = matchingAssessments.Average(m => decimal.Parse(m.Comment ?? "5.0"));  
-
-                    
-                    skillScore = (avgExperience * experienceWeight) + (avgSentiment * sentimentWeight);
-                }
- 
-                bool isRequired = jobSkill.SkillType?.ToLower() == "required";
-                if (isRequired)
-                {
-                    totalRank += skillScore * requiredSkillWeight;
-                    totalWeight += requiredSkillWeight;
-                }
-                else
-                {
-                    totalRank += skillScore * preferredSkillWeight;
-                    totalWeight += preferredSkillWeight;
-                }
-            }
-
-          
-            decimal finalRank = (totalWeight > 0) ? (totalRank / totalWeight) * 10 : 0;
-            if (finalRank > 100) finalRank = 100;
-
-
-        
-            var newApplication = new JobApplication
-            {
-                JobId = jobId,
-                CandidateId = candidateId,
-                ApplicationStatus = "Ranked",
-                AppliedAt = DateTime.UtcNow,
-                Rank = finalRank
-            };
-
-            db.JobApplications.Add(newApplication);
-            await db.SaveChangesAsync();
-        }
-        //[HttpPost("bulk-event")]
-        //public async Task<IActionResult> CreateBulkEvent([FromBody] BulkInterviewEventDto dto)
-        //{
-        //    var bulkEvent = new BulkInterviewEvent
-        //    {
-        //        EventName = dto.EventName,
-        //        EventDate = DateOnly.FromDateTime(dto.EventDate),
-        //        Location = dto.Location,
-        //        Description = dto.Description,
-        //        CreatedByUserId = dto.CreatedByUserId
-        //    };
-        //    db.BulkInterviewEvents.Add(bulkEvent);
-        //    await db.SaveChangesAsync();
-        //    return Ok(bulkEvent);
-        //}
 
 
 
@@ -441,6 +312,72 @@ namespace rmpBackend.Controllers
             await db.SaveChangesAsync();
             return Ok(new { message = "Comment saved successfully." });
         }
-    }
+
+        [HttpGet("getApplicationByJob/{jobId}")]
+        public async Task<IActionResult> GetApplicationByJob(int jobId)
+        {
+            var applications = await db.JobApplications
+                .Where(j => j.JobId == jobId)
+                .Include(j => j.Candidate)
+                .Select(j => new { 
+                    j.ApplicationId,
+                    j.CandidateId ,
+                    j.Candidate.Name,
+                    j.Candidate.Email,
+                    j.Candidate.Phone,
+                    j.ApplicationStatus,
+                    j.StatusReason,
+                    j.AppliedAt,
+                    j.UpdatedAt,
+                }
+                )
+                .ToListAsync();
+
+
+            return Ok(applications);
+        }
+        [HttpGet("getMatchByJob/{jobId}")]
+        public async Task<IActionResult> GetMatchByJob(int jobId)
+        {
+            var applications = await db.JobCandidateMatchMaps
+                .Where(j => j.JobId == jobId)
+                .Include(j => j.Candidate)
+                .Select(j => new
+                {
+                    j.CandidateId,
+                    j.Candidate.Name,
+                    j.Candidate.Email,
+                    j.Candidate.Phone,
+                    j.Candidate.ResumePath,
+                    j.Rank
+                }
+                )
+                .ToListAsync();
+
+
+            return Ok(applications);
+        }
+
+            [HttpGet("getMatchByCandidateId/{candidateId}")]
+            public async Task<IActionResult> GetMatchByCandidate(int candidateId)
+            {
+                var applications = await db.JobCandidateMatchMaps
+                    .Where(j => j.CandidateId == candidateId)
+                    .Include(j => j.Job)
+                    .Select(j => new {
+                        j.JobId,
+                        j.Job.Title, 
+                        j.Job.Description,
+                        j.Job.Status,
+                        j.Job.Location,
+                        j.Rank
+                    }
+                    )
+                    .ToListAsync();
+
+
+                return Ok(applications);
+            }
+        }
 }
 

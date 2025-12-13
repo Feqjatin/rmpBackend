@@ -1,16 +1,18 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.Linq;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using rmpBackend.Models;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;   
-using System.Linq;
+using rmpBackend.Models;
+using rmpBackend.Services;
 
 namespace rmpBackend.Controllers
 {
     [Authorize(Roles = "recruiter, admin")]
     [Route("api/[controller]")]
     [ApiController]
-    public class RecruiterController(AppDbContext db) : ControllerBase
+    public class RecruiterController(AppDbContext db,RankingService rankingService) : ControllerBase
     {
         [HttpGet("job-all")]
         public async Task<IActionResult> GetAllJobs()
@@ -65,7 +67,10 @@ namespace rmpBackend.Controllers
                     j.Location,
                     j.Status,
                     j.MinExperience,
-                    j.CreatedBy,
+                    CreatedByName = db.Users
+                         .Where(u => u.UserId == j.CreatedBy)
+                         .Select(u => u.Username)
+                         .FirstOrDefault(),
                     j.CreatedAt,
                     j.UpdatedAt,
                     j.ClosedReason,
@@ -102,6 +107,7 @@ namespace rmpBackend.Controllers
             job.Status = req.Status;
             job.MinExperience = req.MinExperience;
             job.UpdatedAt = DateTime.UtcNow;
+            job.ClosedReason = req.ClosedReason;
 
             var skillIds = req.Skills.Select(s => s.Id).ToList();
 
@@ -118,6 +124,8 @@ namespace rmpBackend.Controllers
             }).ToList();
 
             await db.SaveChangesAsync();
+            await rankingService.UpdateForExistingJob(req.JobId);
+         
             return Ok("Job updated successfully.");
         }
 
@@ -126,6 +134,7 @@ namespace rmpBackend.Controllers
         [HttpPost("job-create")]
         public async Task<IActionResult> CreateJob([FromBody] NewJobDto req)
         {
+             
             var user = await db.Users.FirstOrDefaultAsync(u => u.Username == req.Username);
             if (user == null)
             {
@@ -141,10 +150,13 @@ namespace rmpBackend.Controllers
                 MinExperience = req.MinExperience,
                 CreatedBy = user.UserId,
                 CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
             };
 
             await db.JobOpenings.AddAsync(job);
             await db.SaveChangesAsync();
+
+          
 
             foreach (var s in req.Skills)
             {
@@ -157,6 +169,8 @@ namespace rmpBackend.Controllers
             }
 
             await db.SaveChangesAsync();
+
+            await rankingService.UpdateForNewJob(job.JobId);
             return Ok("done");
         }
 
@@ -167,13 +181,15 @@ namespace rmpBackend.Controllers
         {
             var job = await db.JobOpenings
                 .Include(j => j.JobSkillMaps)
+                 .Include(j => j.JobCandidateMatchMaps)
                 .FirstOrDefaultAsync(j => j.JobId == req.JobId);
 
-            if (job == null) return BadRequest("Job not found.");
+            if (job == null) return BadRequest( req);
 
             db.JobSkillMaps.RemoveRange(job.JobSkillMaps);
+            db.JobCandidateMatchMaps.RemoveRange(job.JobCandidateMatchMaps);
             db.JobOpenings.Remove(job);
-
+           
             await db.SaveChangesAsync();
             return Ok("Job deleted successfully.");
         }
@@ -253,6 +269,7 @@ namespace rmpBackend.Controllers
 
             await db.Candidates.AddAsync(candidate);
             await db.SaveChangesAsync();
+            await rankingService.UpdateForNewCandidate(candidate.CandidateId);
 
             return Ok(candidate);
         }
@@ -299,7 +316,7 @@ namespace rmpBackend.Controllers
             candidate.UpdatedAt = DateTime.UtcNow;  
 
             await db.SaveChangesAsync();
-
+            await rankingService.UpdateForExistingCandidate(req.CandidateId);
             return Ok("Candidate updated successfully.");
         }
 
@@ -319,7 +336,23 @@ namespace rmpBackend.Controllers
             return Ok("Candidate deleted successfully.");
         }
 
-
+        [HttpGet("getAllReviewerByJob/{jobId}")]
+        public async Task<IActionResult> GetAllReviewerByJob(int JobId)
+        {
+            var listOfReviewer =await db.JobReviewerMaps
+                .Where(r=>r.JobId==JobId)
+                .Include(r=>r.ReviewerUser)
+                .Select( a=> new
+                {
+                    a.ReviewerUser.UserId,
+                    a.ReviewerUser.Username,
+                    a.AssignedAt,
+                    a.TotalApplicationReviewed
+                }
+                )
+                .ToListAsync();
+            return Ok(listOfReviewer);
+        }
 
 
         [HttpPost("assignReviewer")]
@@ -408,51 +441,127 @@ namespace rmpBackend.Controllers
             return Ok(template);
         }
 
-        [HttpGet("round-template")]
-        public async Task<IActionResult> GetAllRoundTemplates()
-        {
-            return Ok(await db.InterviewRoundTemplates.ToListAsync());
-        }
+        //[HttpGet("round-template")]
+        //public async Task<IActionResult> GetAllRoundTemplates()
+        //{
+        //    var all= await db.InterviewRoundTemplates.ToListAsync()
+        //    return Ok();
+        //}
 
-        [HttpGet("round-template/{id}")]
-        public async Task<IActionResult> GetRoundTemplateById(int id)
-        {
-            var template = await db.InterviewRoundTemplates.FindAsync(id);
-            return template == null ? NotFound() : Ok(template);
-        }
+        //[HttpGet("round-template/{id}")]
+        //public async Task<IActionResult> GetRoundTemplateById(int id)
+        //{
+        //    var template = await db.InterviewRoundTemplates.FindAsync(id);
+        //    return template == null ? NotFound() : Ok(template);
+        //}
 
         [HttpGet("round-template/by-job/{jobId}")]
         public async Task<IActionResult> GetRoundTemplatesByJobId(int jobId)
         {
-            var templates = await db.InterviewRoundTemplates.Where(t => t.JobId == jobId).OrderBy(t => t.RoundOrder).ToListAsync();
+            var templates = await db.InterviewRoundTemplates
+                .Where(t => t.JobId == jobId)
+                .Select(t=>new
+                {
+                    t.JobId,
+                    t.RoundOrder,
+                    t.RoundType,
+                    t.RoundName,
+                    t.Description,
+                    t.RoundTemplateId
+                })
+                .OrderBy(t => t.RoundOrder)
+                .ToListAsync();
             return Ok(templates);
         }
 
-        [HttpPut("round-template/{id}")]
-        public async Task<IActionResult> UpdateRoundTemplate(int id, [FromBody] InterviewRoundTemplateDto dto)
+        [HttpPost("round-templates")]
+        public async Task<IActionResult> CreateRoundTemplates([FromBody] List<CreateRoundTemplateDto> request)
         {
-            var template = await db.InterviewRoundTemplates.FindAsync(id);
-            if (template == null) return NotFound();
+            if (request == null || !request.Any())
+                return BadRequest("Invalid input.");
 
-            template.JobId = dto.JobId;
-            template.RoundOrder = dto.RoundOrder;
-            template.RoundType = dto.RoundType;
-            template.RoundName = dto.RoundName;
-            template.Description = dto.Description;
+            var entities = request.Select(r => new InterviewRoundTemplate
+            {
+                JobId = r.JobId,
+                RoundOrder = r.RoundOrder,
+                RoundType = r.RoundType,
+                RoundName = r.RoundName,
+                Description = r.Description
+            }).ToList();
+
+            await db.InterviewRoundTemplates.AddRangeAsync(entities);
+            await db.SaveChangesAsync();
+
+            return Ok(new { message = "Created successfully", entities });
+        }
+        [HttpPut("round-templates")]
+        public async Task<IActionResult> UpdateRoundTemplates(
+    [FromBody] List<UpdateRoundTemplateDto> request)
+        {
+            if (request == null || !request.Any())
+                return BadRequest("Invalid input.");
+
+            var ids = request.Select(x => x.RoundTemplateId).ToList();
+            var existingRecords = await db.InterviewRoundTemplates
+                .Where(x => ids.Contains(x.RoundTemplateId))
+                .ToListAsync();
+
+            if (existingRecords.Count != request.Count)
+                return BadRequest("Some RoundTemplateIds not found.");
+
+            foreach (var dto in request)
+            {
+                var entity = existingRecords.First(x => x.RoundTemplateId == dto.RoundTemplateId);
+
+                entity.JobId = dto.JobId;
+                entity.RoundOrder = dto.RoundOrder;
+                entity.RoundType = dto.RoundType;
+                entity.RoundName = dto.RoundName;
+                entity.Description = dto.Description;
+            }
 
             await db.SaveChangesAsync();
-            return Ok(template);
+
+            return Ok(new { message = "Updated successfully" });
         }
+
 
         [HttpDelete("round-template/{id}")]
         public async Task<IActionResult> DeleteRoundTemplate(int id)
         {
             var template = await db.InterviewRoundTemplates.FindAsync(id);
-            if (template == null) return NotFound();
-            db.InterviewRoundTemplates.Remove(template);
-            await db.SaveChangesAsync();
-            return Ok("Template deleted successfully.");
+            if (template == null)
+                return NotFound("Round template not found.");
+
+            try
+            {
+                db.InterviewRoundTemplates.Remove(template);
+                await db.SaveChangesAsync();
+
+                return Ok("Template deleted successfully.");
+            }
+            catch (DbUpdateException ex)
+            {
+               
+                if (ex.InnerException is SqlException sqlEx &&
+                    sqlEx.Number == 547)  
+                {
+                    return StatusCode(301,
+                        "Cannot delete this round template because it is used in Interview Schedules.");
+                }
+
+                 
+                return StatusCode(301,
+                    "An unexpected database error occurred while deleting the round template.");
+            }
+            catch (Exception)
+            {
+                return StatusCode(301, "An unexpected error occurred.");
+            }
         }
+
+
+
 
     }
 }

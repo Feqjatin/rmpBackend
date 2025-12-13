@@ -3,13 +3,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 using rmpBackend.Models;
+using rmpBackend.Services;
 
 namespace rmpBackend.Controllers
 {
     [Authorize(Roles = "candidate")]
     [Route("api/[controller]")]
     [ApiController]
-    public class CandidateController(AppDbContext db) : ControllerBase
+    public class CandidateController(AppDbContext db, RankingService rankingService) : ControllerBase
     {
 
        
@@ -387,6 +388,9 @@ namespace rmpBackend.Controllers
             }
 
             await db.SaveChangesAsync();
+
+            await rankingService.UpdateForExistingCandidate(candidateId);
+
             return Ok("Skill added/updated successfully.");
         }
 
