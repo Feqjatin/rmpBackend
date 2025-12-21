@@ -4,18 +4,18 @@ using rmpBackend.Models;
 
 namespace rmpBackend.Services
 {
-    public class RankingService(AppDbContext db) 
+    public class RankingService(AppDbContext db)
     {
 
         [NonAction]
         public async Task UpdateForNewJob(int id)
-        {  
-           
+        {
+
             var allCandidateIds = await db.Candidates.Select(c => c.CandidateId).ToListAsync();
             foreach (var candidateId in allCandidateIds)
             {
                 await CalculateAndStoreRank(id, candidateId);
-                
+
             }
 
 
@@ -79,18 +79,18 @@ namespace rmpBackend.Services
                 .ToListAsync();
 
             if (!jobSkills.Any())
-            { 
-              var newMatch = new JobCandidateMatchMap
-              {
-                  JobId = jobId,
-                  CandidateId = candidateId,
-                  Rank = 0
-              };
-              db.JobCandidateMatchMaps.Add(newMatch);
+            {
+                var newMatch = new JobCandidateMatchMap
+                {
+                    JobId = jobId,
+                    CandidateId = candidateId,
+                    Rank = 0
+                };
+                db.JobCandidateMatchMaps.Add(newMatch);
                 return;
-              }
+            }
 
-                decimal totalRank = 0;
+            decimal totalRank = 0;
             decimal totalWeight = 0;
 
             foreach (var jobSkill in jobSkills)
@@ -180,98 +180,10 @@ namespace rmpBackend.Services
                 db.JobCandidateMatchMaps.Add(newMatch);
             }
 
-            //var newMatch = new JobCandidateMatchMap
-            //{
-            //    JobId = jobId,
-            //    CandidateId = candidateId,
-            //    Rank = 80
-            //};
-            //db.JobCandidateMatchMaps.Add(newMatch);
+
 
 
             await db.SaveChangesAsync();
         }
-        //private async Task CalculateAndStoreRank(int jobId, int candidateId)
-        //{ 
-        //    const decimal requiredSkillWeight = 0.70m;
-        //    const decimal preferredSkillWeight = 0.30m;
-        //    const decimal experienceWeight = 0.6m;
-        //    const decimal sentimentWeight = 0.4m;
-
-
-        //    var jobSkills = await db.JobSkillMaps
-        //        .Where(jsm => jsm.JobId == jobId)
-        //        .ToListAsync();
-
-        //    var candidateAssessments = await db.SkillAssessments
-        //        .Where(sa => sa.CandidateId == candidateId)
-        //        .ToListAsync();
-
-        //    if (!jobSkills.Any()) return;  
-
-        //    decimal totalRank = 0;
-        //    decimal totalWeight = 0;
-
-        //    foreach (var jobSkill in jobSkills)
-        //    {
-        //        var matchingAssessments = candidateAssessments.Where(ca => ca.SkillId == jobSkill.SkillId).ToList();
-        //        decimal skillScore = 0;
-
-        //        if (matchingAssessments.Any())
-        //        {
-
-        //            decimal avgExperience = matchingAssessments.Average(m => m.YearsOfExperience ?? 0);
-        //            decimal avgSentiment = matchingAssessments.Average(m => decimal.Parse(m.Comment ?? "5.0"));  
-
-
-        //            skillScore = (avgExperience * experienceWeight) + (avgSentiment * sentimentWeight);
-        //        }
-
-        //        bool isRequired = jobSkill.SkillType?.ToLower() == "required";
-        //        if (isRequired)
-        //        {
-        //            totalRank += skillScore * requiredSkillWeight;
-        //            totalWeight += requiredSkillWeight;
-        //        }
-        //        else
-        //        {
-        //            totalRank += skillScore * preferredSkillWeight;
-        //            totalWeight += preferredSkillWeight;
-        //        }
-        //    }
-
-
-        //    decimal finalRank = (totalWeight > 0) ? (totalRank / totalWeight) * 10 : 0;
-        //    if (finalRank > 100) finalRank = 100;
-
-
-
-        //    var newApplication = new JobApplication
-        //    {
-        //        JobId = jobId,
-        //        CandidateId = candidateId,
-        //        ApplicationStatus = "Ranked",
-        //        AppliedAt = DateTime.UtcNow,
-        //        Rank = finalRank
-        //    };
-
-        //    db.JobApplications.Add(newApplication);
-        //    await db.SaveChangesAsync();
-        //}
-        //[HttpPost("bulk-event")]
-        //public async Task<IActionResult> CreateBulkEvent([FromBody] BulkInterviewEventDto dto)
-        //{
-        //    var bulkEvent = new BulkInterviewEvent
-        //    {
-        //        EventName = dto.EventName,
-        //        EventDate = DateOnly.FromDateTime(dto.EventDate),
-        //        Location = dto.Location,
-        //        Description = dto.Description,
-        //        CreatedByUserId = dto.CreatedByUserId
-        //    };
-        //    db.BulkInterviewEvents.Add(bulkEvent);
-        //    await db.SaveChangesAsync();
-        //    return Ok(bulkEvent);
-        //}
     }
 }
