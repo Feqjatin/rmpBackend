@@ -79,9 +79,23 @@ namespace rmpBackend.Controllers
                         js.SkillId,
                         js.Skill.SkillName,
                         js.SkillType
-                    }).ToList()
-                })
-                .ToListAsync();
+                    }).ToList(),
+
+                   SelectedCandidates =
+                    j.Status == "Permanent Close(Required Candidate Found)"
+                    ? db.JobCandidateSelecteds
+                        .Where(cs => cs.JobId == j.JobId)
+                        .Select(cs => new SelectedCandidateDto
+                        {
+                            CandidateId = cs.CandidateId,
+                            CandidateName = cs.Candidate.Name,
+                            CandidateEmail = cs.Candidate.Email,
+                        })
+                        .ToList()
+                    : new List<SelectedCandidateDto>()
+
+                })   
+                 .ToListAsync();
 
             if (jobs.Count == 0)
             {
@@ -425,6 +439,7 @@ namespace rmpBackend.Controllers
 
             return Ok("Reviewer discharged from the job opening successfully!");
         }
+
         [HttpPost("round-template")]
         public async Task<IActionResult> CreateRoundTemplate([FromBody] InterviewRoundTemplateDto dto)
         {
@@ -467,7 +482,9 @@ namespace rmpBackend.Controllers
                     t.RoundType,
                     t.RoundName,
                     t.Description,
-                    t.RoundTemplateId
+                    t.RoundTemplateId,
+                    t.Weightage,
+                    t.IsCustomRound
                 })
                 .OrderBy(t => t.RoundOrder)
                 .ToListAsync();
@@ -486,7 +503,9 @@ namespace rmpBackend.Controllers
                 RoundOrder = r.RoundOrder,
                 RoundType = r.RoundType,
                 RoundName = r.RoundName,
-                Description = r.Description
+                Description = r.Description,
+                IsCustomRound=r.IsCustomRound,
+                Weightage=r.Weightage
             }).ToList();
 
             await db.InterviewRoundTemplates.AddRangeAsync(entities);
@@ -495,8 +514,7 @@ namespace rmpBackend.Controllers
             return Ok(new { message = "Created successfully", entities });
         }
         [HttpPut("round-templates")]
-        public async Task<IActionResult> UpdateRoundTemplates(
-    [FromBody] List<UpdateRoundTemplateDto> request)
+        public async Task<IActionResult> UpdateRoundTemplates([FromBody] List<UpdateRoundTemplateDto> request)
         {
             if (request == null || !request.Any())
                 return BadRequest("Invalid input.");
@@ -518,6 +536,9 @@ namespace rmpBackend.Controllers
                 entity.RoundType = dto.RoundType;
                 entity.RoundName = dto.RoundName;
                 entity.Description = dto.Description;
+                entity.Weightage = dto.Weightage;
+                entity.IsCustomRound = dto.IsCustomRound;
+
             }
 
             await db.SaveChangesAsync();

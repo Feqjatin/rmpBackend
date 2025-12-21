@@ -21,6 +21,13 @@ namespace rmpBackend.Models
         [StringLength(50)]
         public string? Status { get; set; }
     }
+    public class SelectedCandidateDto
+    {
+        public int CandidateId { get; set; }
+        public string CandidateName { get; set; }
+        public string CandidateEmail { get; set; }
+    }
+
     public class UpdateCandidateDto
     {
         

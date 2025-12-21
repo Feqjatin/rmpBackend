@@ -21,6 +21,12 @@ public partial class InterviewSchedule
 
     public string? Location { get; set; }
 
+    public int? TestId { get; set; }
+
+    public decimal? TestScore { get; set; }
+
+    public decimal? RoundScore { get; set; }
+
     public virtual JobApplication Application { get; set; } = null!;
 
     public virtual ICollection<InterviewRescheduleRequest> InterviewRescheduleRequests { get; set; } = new List<InterviewRescheduleRequest>();

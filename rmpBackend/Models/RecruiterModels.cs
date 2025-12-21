@@ -62,6 +62,8 @@ namespace rmpBackend.Models
         public string RoundType { get; set; }
         public string RoundName { get; set; }
         public string? Description { get; set; }
+        public decimal Weightage { get; set; }
+        public bool IsCustomRound { get; set; }
     }
     public class UpdateRoundTemplateDto
     {
@@ -71,6 +73,8 @@ namespace rmpBackend.Models
         public string RoundType { get; set; }
         public string RoundName { get; set; }
         public string? Description { get; set; }
+        public decimal Weightage { get; set; }
+        public bool IsCustomRound { get; set; }
     }
 
 

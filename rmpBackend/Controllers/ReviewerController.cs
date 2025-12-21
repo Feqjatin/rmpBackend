@@ -98,8 +98,12 @@ namespace rmpBackend.Controllers
             var applicationIds = applications.Select(a => a.ApplicationId).ToList();
 
             var existingActions = await db.ReviewerActions
-                .Where(ra => applicationIds.Contains(ra.ApplicationId))
-                .ToDictionaryAsync(ra => ra.ApplicationId);
+                    .Where(ra => applicationIds.Contains(ra.ApplicationId))
+                    .GroupBy(ra => ra.ApplicationId)
+                    .Select(g => g
+                        .OrderByDescending(x => x.ActionDate)
+                        .First())
+                    .ToDictionaryAsync(x => x.ApplicationId);
 
             var results = applications.Select(app =>
             {
@@ -152,12 +156,18 @@ namespace rmpBackend.Controllers
             }
 
             var existingActions = await db.ReviewerActions
-                .Where(ra => ra.ReviewerUserId == user.UserId && req.Ids.Contains(ra.ApplicationId))
-                .ToDictionaryAsync(ra => ra.ApplicationId);
+                 .Where(ra => ra.ReviewerUserId == user.UserId &&
+                              req.Ids.Contains(ra.ApplicationId))
+                 .GroupBy(ra => ra.ApplicationId)
+                 .Select(g => g.OrderByDescending(x => x.ActionDate).First())
+                 .ToDictionaryAsync(x => x.ApplicationId);
+
 
             var newActionsToAdd = new List<ReviewerAction>();
+            int publishedCount = 0;
+            int? jobId = null;
 
-            
+
             bool isPublishedStatus = req.Status?.Equals("Published", StringComparison.OrdinalIgnoreCase) ?? false;
             if (isPublishedStatus)
             {
@@ -165,27 +175,40 @@ namespace rmpBackend.Controllers
                 {
                     if (existingActions.TryGetValue(appId, out var actionToUpdate))
                     {
-
-                 
                         actionToUpdate.ActionDate = DateTime.UtcNow;
                         actionToUpdate.IsPublished = true;
+
+                        var application = await db.JobApplications
+                            .FirstOrDefaultAsync(a => a.ApplicationId == appId);
+
+                        if (application == null)
+                            return BadRequest("Application not found");
+
+                         
+                        jobId ??= application.JobId;
+
+                        application.ApplicationStatus = actionToUpdate.Status + " by Reviewer";
+
+                        publishedCount++;  
                     }
                     else
                     {
-                         return BadRequest("application id not found");
+                        return BadRequest("Application id not found");
                     }
                 }
             }
+
             else
             {
                 foreach (var appId in req.Ids)
                 {
                     if (existingActions.TryGetValue(appId, out var actionToUpdate))
                     {
-
-                        actionToUpdate.Status = req.Status;
-                        actionToUpdate.ActionDate = DateTime.UtcNow;
-                        
+                        if (actionToUpdate.IsPublished == false)
+                        {
+                            actionToUpdate.Status = req.Status;
+                            actionToUpdate.ActionDate = DateTime.UtcNow;
+                        }
                     }
                     else
                     {
@@ -203,6 +226,20 @@ namespace rmpBackend.Controllers
                     }
                 }
             }
+
+            if (isPublishedStatus && jobId.HasValue && publishedCount > 0)
+            {
+                var reviewerMap = await db.JobReviewerMaps
+                    .FirstOrDefaultAsync(j =>
+                        j.JobId == jobId.Value &&
+                        j.ReviewerUserId == user.UserId);
+
+                if (reviewerMap == null)
+                    return BadRequest("Reviewer not assigned to this job");
+
+                reviewerMap.TotalApplicationReviewed += publishedCount;
+            }
+
 
             if (newActionsToAdd.Any())
             {

@@ -8,7 +8,7 @@ using rmpBackend.Services;
 
 namespace rmpBackend.Controllers
 {
-    [Authorize(Roles = "recruiter, admin, reviewer")]
+    [Authorize(Roles = "recruiter, admin, reviewer,candidate")]
     [Route("api/[controller]")]
     [ApiController]
     public class UtilController(AppDbContext db, RankingService rankingService) : ControllerBase

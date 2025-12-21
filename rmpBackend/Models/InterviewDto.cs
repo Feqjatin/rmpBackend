@@ -23,16 +23,36 @@ namespace rmpBackend.Models
         public int ApplicationId { get; set; }
         [Required]
         public int RoundTemplateId { get; set; }
-        public string Status { get; set; } = "Scheduled";
-        [Required]
+        public string Status { get; set; }  
+       
         public DateTime ScheduledStartTime { get; set; }
-        [Required]
+         
         public DateTime ScheduledEndTime { get; set; }
         public string MeetingLink { get; set; }
         public string Location { get; set; }
+
+        public int? TestId { get; set; }
+
+        public decimal? TestScore { get; set; }
+
+        public decimal? RoundScore { get; set; }
+
+    }
+    public class InterviewScheduleUpdateDto
+    {
+        public int? ApplicationId { get; set; }
+        public int? RoundTemplateId { get; set; }
+        public string? Status { get; set; }
+        public DateTime? ScheduledStartTime { get; set; }
+        public DateTime? ScheduledEndTime { get; set; }
+        public string? MeetingLink { get; set; }
+        public string? Location { get; set; }
+        public decimal? TestScore { get; set; }
+        public int? TestId { get; set; }
+        public decimal? RoundScore { get; set; }
     }
 
-    
+
     public class InterviewInterviewerMapDto
     {
         [Required]
@@ -52,4 +72,11 @@ namespace rmpBackend.Models
         public string Description { get; set; }
         public int? CreatedByUserId { get; set; }
     }
+    public class UpdateRescheduleRequestDto
+    {
+        public int RequestId { get; set; }
+        public string Status { get; set; } = null!;
+        public string? AdminComment { get; set; }
+    }
+
 }

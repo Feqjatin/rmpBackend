@@ -66,7 +66,10 @@ namespace rmpBackend.Controllers
                     ScheduledEndTime = s.ScheduledEndTime,
                     MeetingLink = s.MeetingLink,
                     Location = s.Location,
-                    applicationId =s.ApplicationId,
+                    ApplicationId =s.ApplicationId,
+                    RoundScore = s.RoundScore,
+                    TestId=s.TestId,
+                    TestScore=s.TestScore,
 
                     RoundInfo = new
                     {
@@ -86,7 +89,8 @@ namespace rmpBackend.Controllers
                     Interviewers = s.InterviewInterviewerMaps.Select(m => new
                     {
                         m.InterviewerUser.Username,
-                        m.InterviewerUser.Email
+                        m.InterviewerUser.Email,
+                        m.InterviewerUser.UserId
                     }).ToList(),
 
                     JobInfo = new
@@ -121,7 +125,7 @@ namespace rmpBackend.Controllers
             //}
 
 
-            [HttpGet("schedule/by-application/{applicationId}")]
+        [HttpGet("schedule/by-application/{applicationId}")]
         public async Task<IActionResult> GetSchedulesByApplicationId(int applicationId)
         {
             var schedules = await db.InterviewSchedules
@@ -132,22 +136,46 @@ namespace rmpBackend.Controllers
         }
 
         [HttpPut("schedule/{id}")]
-        public async Task<IActionResult> UpdateSchedule(int id, [FromBody] InterviewScheduleDto dto)
+        public async Task<IActionResult> UpdateSchedule(int id,[FromBody] InterviewScheduleUpdateDto dto)
         {
             var schedule = await db.InterviewSchedules.FindAsync(id);
-            if (schedule == null) return NotFound();
+            if (schedule == null)
+                return NotFound();
 
-            schedule.ApplicationId = dto.ApplicationId;
-            schedule.RoundTemplateId = dto.RoundTemplateId;
-            schedule.Status = dto.Status;
-            schedule.ScheduledStartTime = dto.ScheduledStartTime;
-            schedule.ScheduledEndTime = dto.ScheduledEndTime;
-            schedule.MeetingLink = dto.MeetingLink;
-            schedule.Location = dto.Location;
+            if (dto.ApplicationId.HasValue)
+                schedule.ApplicationId = dto.ApplicationId.Value;
+
+            if (dto.RoundTemplateId.HasValue)
+                schedule.RoundTemplateId = dto.RoundTemplateId.Value;
+
+            if (!string.IsNullOrEmpty(dto.Status))
+                schedule.Status = dto.Status;
+
+            if (dto.ScheduledStartTime.HasValue)
+                schedule.ScheduledStartTime = dto.ScheduledStartTime.Value;
+
+            if (dto.ScheduledEndTime.HasValue)
+                schedule.ScheduledEndTime = dto.ScheduledEndTime.Value;
+
+            if (!string.IsNullOrEmpty(dto.MeetingLink))
+                schedule.MeetingLink = dto.MeetingLink;
+
+            if (!string.IsNullOrEmpty(dto.Location))
+                schedule.Location = dto.Location;
+
+            if (dto.TestScore.HasValue)
+                schedule.TestScore = dto.TestScore.Value;
+
+            if (dto.TestId.HasValue)
+                schedule.TestId = dto.TestId.Value;
+
+            if (dto.RoundScore.HasValue)
+                schedule.RoundScore = dto.RoundScore.Value;
 
             await db.SaveChangesAsync();
-            return Ok(schedule);
+            return Ok("success");
         }
+
 
         [HttpDelete("schedule/{id}")]
         public async Task<IActionResult> DeleteSchedule(int id)
@@ -203,6 +231,136 @@ namespace rmpBackend.Controllers
             return Ok("Interviewer assignment deleted successfully.");
         }
 
+        [HttpGet("reschedule-request/{username}")]
+        public async Task<IActionResult> GetRescheduleRequest(string username)
+        {
+            
+            var userId = await db.Users
+                .Where(u => u.Username == username)
+                .Select(u => u.UserId)
+                .FirstOrDefaultAsync();
+
+            if (userId == 0)
+                return NotFound("User not found");
+
+             
+            var interviewIds = await db.InterviewInterviewerMaps
+                .Where(i => i.InterviewerUserId == userId)
+                .Select(i => i.InterviewId)
+                .ToListAsync();
+
+            if (!interviewIds.Any())
+                return Ok(new List<object>());
+
+             
+            var requests = await db.InterviewRescheduleRequests
+                .Where(r => interviewIds.Contains(r.InterviewId))
+                .Include(r => r.Candidate)
+                .Include(r => r.Interview)
+                .Select(r => new
+                {
+                    r.RequestId,
+                    r.InterviewId,
+                    r.CandidateId,
+                    CandidateName = r.Candidate.Name,
+                    r.RequestedNewStartTime,
+                    r.RequestedNewEndTime,
+                    r.Reason,
+                    r.Status,
+                    r.AdminComment,
+                    r.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(requests);
+        }
+
+        [HttpPut("reschedule-request")]
+        public async Task<IActionResult> UpdateRescheduleRequest([FromBody] UpdateRescheduleRequestDto req)
+        {
+            var request = await db.InterviewRescheduleRequests
+                .FirstOrDefaultAsync(r => r.RequestId == req.RequestId);
+
+            if (request == null)
+                return NotFound("Reschedule request not found");
+
+            request.Status = req.Status;
+            request.AdminComment = req.AdminComment;
+            
+
+            await db.SaveChangesAsync();
+
+            return Ok(new { message = "Reschedule request updated successfully" });
+        }
+
+        [HttpPost("add-interviewer")]
+        public async Task<IActionResult> AddInterviewer(int interviewId, int userId)
+        {
+             
+            var interviewExists = await db.InterviewSchedules
+                .AnyAsync(i => i.InterviewId == interviewId);
+
+            if (!interviewExists)
+                return NotFound("Interview not found");
+
+             
+            var userExists = await db.Users
+                .AnyAsync(u => u.UserId == userId);
+
+            if (!userExists)
+                return NotFound("User not found");
+
+             
+            var alreadyMapped = await db.InterviewInterviewerMaps
+                .AnyAsync(m => m.InterviewId == interviewId && m.InterviewerUserId == userId);
+
+            if (alreadyMapped)
+                return BadRequest("Interviewer already assigned to this interview");
+
+            
+            var map = new InterviewInterviewerMap
+            {
+                InterviewId = interviewId,
+                InterviewerUserId = userId,
+               
+            };
+
+            db.InterviewInterviewerMaps.Add(map);
+            await db.SaveChangesAsync();
+
+            return Ok("success");
+        }
+        [HttpDelete("remove-interviewer")]
+        public async Task<IActionResult> RemoveInterviewer(int interviewId, int userId)
+        {
+            
+            var interviewExists = await db.InterviewSchedules
+                .AnyAsync(i => i.InterviewId == interviewId);
+
+            if (!interviewExists)
+                return NotFound("Interview not found");
+
+            
+            var userExists = await db.Users
+                .AnyAsync(u => u.UserId == userId);
+
+            if (!userExists)
+                return NotFound("User not found");
+
+             
+            var mapping = await db.InterviewInterviewerMaps
+                .FirstOrDefaultAsync(m =>
+                    m.InterviewId == interviewId &&
+                    m.InterviewerUserId == userId);
+
+            if (mapping == null)
+                return NotFound("Interviewer is not assigned to this interview");
+             
+            db.InterviewInterviewerMaps.Remove(mapping);
+            await db.SaveChangesAsync();
+
+            return Ok("success");
+        }
 
 
 

@@ -17,6 +17,10 @@ public partial class InterviewRoundTemplate
 
     public string? Description { get; set; }
 
+    public decimal Weightage { get; set; }
+
+    public bool IsCustomRound { get; set; }
+
     public virtual ICollection<InterviewSchedule> InterviewSchedules { get; set; } = new List<InterviewSchedule>();
 
     public virtual JobOpening Job { get; set; } = null!;
