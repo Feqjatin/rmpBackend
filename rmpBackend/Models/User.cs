@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore;
 
 namespace rmpBackend.Models;
 
@@ -35,7 +36,6 @@ public partial class User
 
     public virtual ICollection<SkillAssessment> SkillAssessments { get; set; } = new List<SkillAssessment>();
 
-    // public virtual ICollection<InterviewSchedule> Interviews { get; set; } = new List<InterviewSchedule>();
     public virtual ICollection<InterviewInterviewerMap> InterviewInterviewerMaps { get; set; } = new List<InterviewInterviewerMap>();
 
     public virtual ICollection<Role> Roles { get; set; } = new List<Role>();

@@ -453,7 +453,7 @@ namespace rmpBackend.Controllers
             };
             db.InterviewRoundTemplates.Add(template);
             await db.SaveChangesAsync();
-            return Ok(template);
+            return Ok(template.RoundTemplateId);
         }
 
         //[HttpGet("round-template")]
@@ -580,6 +580,112 @@ namespace rmpBackend.Controllers
                 return StatusCode(301, "An unexpected error occurred.");
             }
         }
+
+        [HttpGet("getInterviewSchedule/{jobId}")]
+        public async Task<IActionResult> GetInterviewSchedule(int jobId)
+        {
+            var schedules = await db.InterviewSchedules.Where(i=>i.Application.JobId==jobId)
+                .Select(i => new
+                {
+                    i.InterviewId,
+                    i.Status,
+                    i.ScheduledStartTime,
+                    i.ScheduledEndTime,
+                    i.MeetingLink,
+                    i.Location,
+                    i.RoundSequence,
+                    i.TestId,
+
+
+                    Round = new
+                    {
+                        i.RoundTemplate.RoundTemplateId,
+                        i.RoundTemplate.RoundName,
+                        i.RoundTemplate.RoundType,
+                        i.RoundTemplate.RoundOrder
+                    },
+
+                    Application = new
+                    {
+                        i.Application.ApplicationId,
+                        i.Application.JobId,
+                        i.Application.ApplicationStatus
+                    },
+
+                    Interviewers = i.InterviewInterviewerMaps
+                        .Select(m => new
+                        {
+                            UserId = m.InterviewerUserId,
+                            Name = m.InterviewerUser.Username    
+                        })
+                        .ToList()
+                })
+                .ToListAsync();
+
+            return Ok(schedules);
+        }
+
+        [HttpPost("bulkApplicationCreate")]
+        public async Task<IActionResult> BulkApplicationCreate(
+    [FromBody] BulkApplicationCreateDto dto)
+        {
+            if (dto.CandidateIds == null || !dto.CandidateIds.Any())
+                return BadRequest("CandidateIds are required");
+ 
+            var jobExists = await db.JobOpenings
+                .AnyAsync(j => j.JobId == dto.JobId);
+
+            if (!jobExists)
+                return NotFound("Job not found");
+
+           
+            var existingCandidateIds = await db.JobApplications
+                .Where(a => a.JobId == dto.JobId &&
+                            dto.CandidateIds.Contains(a.CandidateId))
+                .Select(a => a.CandidateId)
+                .ToListAsync();
+             
+            var newCandidateIds = dto.CandidateIds
+                .Except(existingCandidateIds)
+                .ToList();
+
+            if (!newCandidateIds.Any())
+                return BadRequest("All candidates already applied");
+
+             
+            var applications = newCandidateIds.Select(cid => new JobApplication
+            {
+                CandidateId = cid,
+                JobId = dto.JobId,
+                ApplicationStatus = "PRE-APPLIED",
+                AppliedAt = DateTime.UtcNow
+            });
+
+            db.JobApplications.AddRange(applications);
+            await db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                CreatedCount = newCandidateIds.Count,
+                SkippedCount = existingCandidateIds.Count
+            });
+        }
+
+        [HttpGet("getAllCandidate")]
+        public async Task<IActionResult> GetAllCandidate()
+        {
+            var allCandidate= db.Candidates.Select(i => new
+            {
+                i.CandidateId,
+                i.Name,
+                i.Email,
+            }
+            ).ToList();
+            return Ok(allCandidate);
+        }
+
+
+
 
 
 

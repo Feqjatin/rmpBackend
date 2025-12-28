@@ -33,11 +33,10 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<InterviewRoundTemplate> InterviewRoundTemplates { get; set; }
 
-    public virtual DbSet<InterviewInterviewerMap> InterviewInterviewerMaps { get; set; }
-
     public virtual DbSet<InterviewSchedule> InterviewSchedules { get; set; }
 
     public virtual DbSet<JobApplication> JobApplications { get; set; }
+    public virtual DbSet<InterviewInterviewerMap> InterviewInterviewerMaps { get; set; }
 
     public virtual DbSet<JobCandidateMatchMap> JobCandidateMatchMaps { get; set; }
 
@@ -357,6 +356,7 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.RoundScore)
                 .HasColumnType("decimal(5, 2)")
                 .HasColumnName("round_score");
+            entity.Property(e => e.RoundSequence).HasColumnName("round_sequence");
             entity.Property(e => e.RoundTemplateId).HasColumnName("round_template_id");
             entity.Property(e => e.ScheduledEndTime).HasColumnName("scheduled_end_time");
             entity.Property(e => e.ScheduledStartTime).HasColumnName("scheduled_start_time");
@@ -378,9 +378,8 @@ public partial class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_interviewschedule_roundtemplate");
 
-            
+             
         });
-
         modelBuilder.Entity<InterviewInterviewerMap>(entity =>
         {
             entity.HasKey(e => new { e.InterviewId, e.InterviewerUserId });
@@ -405,6 +404,7 @@ public partial class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("fk_interviewmap_user");
         });
+
         modelBuilder.Entity<JobApplication>(entity =>
         {
             entity.HasKey(e => e.ApplicationId).HasName("PK__JobAppli__3BCBDCF214B8A4F0");

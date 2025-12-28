@@ -23,19 +23,20 @@ namespace rmpBackend.Models
         public int ApplicationId { get; set; }
         [Required]
         public int RoundTemplateId { get; set; }
-        public string Status { get; set; }  
+        public string? Status { get; set; }  
        
-        public DateTime ScheduledStartTime { get; set; }
+        public DateTime? ScheduledStartTime { get; set; }
          
-        public DateTime ScheduledEndTime { get; set; }
-        public string MeetingLink { get; set; }
-        public string Location { get; set; }
+        public DateTime? ScheduledEndTime { get; set; }
+        public string? MeetingLink { get; set; }
+        public string? Location { get; set; }
 
         public int? TestId { get; set; }
 
         public decimal? TestScore { get; set; }
 
         public decimal? RoundScore { get; set; }
+        public int ? RoundSequence {  get; set; } 
 
     }
     public class InterviewScheduleUpdateDto
@@ -50,6 +51,7 @@ namespace rmpBackend.Models
         public decimal? TestScore { get; set; }
         public int? TestId { get; set; }
         public decimal? RoundScore { get; set; }
+        public int? RoundSequence { get; set; }
     }
 
 
@@ -77,6 +79,18 @@ namespace rmpBackend.Models
         public int RequestId { get; set; }
         public string Status { get; set; } = null!;
         public string? AdminComment { get; set; }
+    }
+
+    public class BulkInterviewerRequest
+    {
+        public List<int> InterviewIds { get; set; } = new();
+        public int UserId { get; set; }
+    }
+
+    public class BulkInterviewScheduleUpdateDto
+    {
+        public List<int> ScheduleIds { get; set; } = new();
+        public InterviewScheduleUpdateDto Update { get; set; } = null!;
     }
 
 }

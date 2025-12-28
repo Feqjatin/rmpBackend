@@ -77,5 +77,11 @@ namespace rmpBackend.Models
         public bool IsCustomRound { get; set; }
     }
 
+    public class BulkApplicationCreateDto
+    {
+        public List<int> CandidateIds { get; set; } = new();
+        public int JobId { get; set; }
+    }
+
 
 }

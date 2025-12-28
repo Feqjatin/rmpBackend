@@ -1,11 +1,14 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Azure.Core;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using rmpBackend.Models;
+
  
 
 namespace rmpBackend.Controllers
@@ -167,6 +170,7 @@ namespace rmpBackend.Controllers
             int publishedCount = 0;
             int? jobId = null;
 
+            var Ids= new List<int>(); 
 
             bool isPublishedStatus = req.Status?.Equals("Published", StringComparison.OrdinalIgnoreCase) ?? false;
             if (isPublishedStatus)
@@ -189,7 +193,10 @@ namespace rmpBackend.Controllers
 
                         application.ApplicationStatus = actionToUpdate.Status + " by Reviewer";
 
-                        publishedCount++;  
+                        publishedCount++;
+
+                       Ids.Add(application.ApplicationId);
+
                     }
                     else
                     {
@@ -226,6 +233,11 @@ namespace rmpBackend.Controllers
                     }
                 }
             }
+            if (Ids.Count > 0)
+            {
+                rmpBackend.Queue.InMemoryQueue.Queue.Enqueue(Ids);
+            }
+           
 
             if (isPublishedStatus && jobId.HasValue && publishedCount > 0)
             {

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore;
 
 namespace rmpBackend.Models;
 
@@ -13,9 +14,9 @@ public partial class InterviewSchedule
 
     public string Status { get; set; } = null!;
 
-    public DateTime ScheduledStartTime { get; set; }
+    public DateTime? ScheduledStartTime { get; set; }
 
-    public DateTime ScheduledEndTime { get; set; }
+    public DateTime? ScheduledEndTime { get; set; }
 
     public string? MeetingLink { get; set; }
 
@@ -26,6 +27,8 @@ public partial class InterviewSchedule
     public decimal? TestScore { get; set; }
 
     public decimal? RoundScore { get; set; }
+
+    public int? RoundSequence { get; set; }
 
     public virtual JobApplication Application { get; set; } = null!;
 

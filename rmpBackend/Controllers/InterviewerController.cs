@@ -20,11 +20,12 @@ namespace rmpBackend.Controllers
             {
                 ApplicationId = dto.ApplicationId,
                 RoundTemplateId = dto.RoundTemplateId,
-                Status = dto.Status,
-                ScheduledStartTime = dto.ScheduledStartTime,
-                ScheduledEndTime = dto.ScheduledEndTime,
+                Status = "PENDING",
+                
                 MeetingLink = dto.MeetingLink,
-                Location = dto.Location
+                Location = dto.Location,
+                RoundSequence = dto.RoundSequence
+
             };
             db.InterviewSchedules.Add(schedule);
             await db.SaveChangesAsync();
@@ -73,7 +74,7 @@ namespace rmpBackend.Controllers
 
                     RoundInfo = new
                     {
-                        s.RoundTemplate.RoundOrder,
+                        s.RoundSequence,
                         s.RoundTemplate.RoundName,
                         s.RoundTemplate.RoundType
                     },
@@ -134,6 +135,7 @@ namespace rmpBackend.Controllers
                 .ToListAsync();
             return Ok(schedules);
         }
+        
 
         [HttpPut("schedule/{id}")]
         public async Task<IActionResult> UpdateSchedule(int id,[FromBody] InterviewScheduleUpdateDto dto)
@@ -171,6 +173,8 @@ namespace rmpBackend.Controllers
 
             if (dto.RoundScore.HasValue)
                 schedule.RoundScore = dto.RoundScore.Value;
+            if(dto.RoundSequence.HasValue)
+                schedule.RoundSequence= dto.RoundSequence.Value;
 
             await db.SaveChangesAsync();
             return Ok("success");
@@ -293,75 +297,46 @@ namespace rmpBackend.Controllers
             return Ok(new { message = "Reschedule request updated successfully" });
         }
 
-        [HttpPost("add-interviewer")]
-        public async Task<IActionResult> AddInterviewer(int interviewId, int userId)
+         
+        [HttpGet("getRounds/{applicationId}")]
+        public async Task<IActionResult> GetRounds(int applicationId)
         {
-             
-            var interviewExists = await db.InterviewSchedules
-                .AnyAsync(i => i.InterviewId == interviewId);
+            var allInterview = await db.InterviewSchedules
+                .Where(i => i.ApplicationId == applicationId)
+                .Include(i => i.RoundTemplate)
+                .Select(i=>new
+                {
+                    i.ApplicationId,
+                    i.InterviewId,
+                    i.RoundTemplateId,
+                    i.RoundTemplate.JobId,
+                    i.RoundTemplate.Weightage,
+                    i.RoundTemplate.Description,
+                    i.RoundTemplate.RoundName,
+                    i.RoundTemplate.RoundType,
+                    i.RoundTemplate.RoundOrder,
+                    i.RoundTemplate.IsCustomRound,
+                   i.Status,
+                   i.ScheduledEndTime,
+                   i.ScheduledStartTime,
+                   i.MeetingLink,
+                   i.Location,
+                   i.TestId,
+                   i.TestScore,
+                   i.RoundScore,
+                   i.RoundSequence
 
-            if (!interviewExists)
-                return NotFound("Interview not found");
 
-             
-            var userExists = await db.Users
-                .AnyAsync(u => u.UserId == userId);
 
-            if (!userExists)
-                return NotFound("User not found");
-
-             
-            var alreadyMapped = await db.InterviewInterviewerMaps
-                .AnyAsync(m => m.InterviewId == interviewId && m.InterviewerUserId == userId);
-
-            if (alreadyMapped)
-                return BadRequest("Interviewer already assigned to this interview");
-
-            
-            var map = new InterviewInterviewerMap
+    })
+                .ToArrayAsync();
+            if(!allInterview.Any())
             {
-                InterviewId = interviewId,
-                InterviewerUserId = userId,
-               
-            };
+                return NotFound("no interview found");
+            }
 
-            db.InterviewInterviewerMaps.Add(map);
-            await db.SaveChangesAsync();
-
-            return Ok("success");
+            return Ok(allInterview);
         }
-        [HttpDelete("remove-interviewer")]
-        public async Task<IActionResult> RemoveInterviewer(int interviewId, int userId)
-        {
-            
-            var interviewExists = await db.InterviewSchedules
-                .AnyAsync(i => i.InterviewId == interviewId);
-
-            if (!interviewExists)
-                return NotFound("Interview not found");
-
-            
-            var userExists = await db.Users
-                .AnyAsync(u => u.UserId == userId);
-
-            if (!userExists)
-                return NotFound("User not found");
-
-             
-            var mapping = await db.InterviewInterviewerMaps
-                .FirstOrDefaultAsync(m =>
-                    m.InterviewId == interviewId &&
-                    m.InterviewerUserId == userId);
-
-            if (mapping == null)
-                return NotFound("Interviewer is not assigned to this interview");
-             
-            db.InterviewInterviewerMaps.Remove(mapping);
-            await db.SaveChangesAsync();
-
-            return Ok("success");
-        }
-
 
 
     }

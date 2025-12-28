@@ -40,6 +40,7 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddAuthorization();
+builder.Services.AddHostedService<rmpBackend.BackgroundJobs.DbWorker>();
 
 builder.Services.AddCors(options =>
 {
