@@ -147,9 +147,15 @@ namespace rmpBackend.Models
             public int SkillId { get; set; }
             public string? ProficiencyLevel { get; set; }
         }
+        public class CandidateResponse
+        {
+        
+            public int ApplicationId { get; set; }
+            public string Response { get; set; }
+        }
 
-      
-        public class CandidateDocumentDto
+
+    public class CandidateDocumentDto
         {
             public int? ApplicationId { get; set; }
             [Required]

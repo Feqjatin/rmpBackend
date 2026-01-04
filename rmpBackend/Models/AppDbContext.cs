@@ -32,11 +32,11 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<InterviewRescheduleRequest> InterviewRescheduleRequests { get; set; }
 
     public virtual DbSet<InterviewRoundTemplate> InterviewRoundTemplates { get; set; }
+    public virtual DbSet<InterviewInterviewerMap> InterviewInterviewerMaps { get; set; }
 
     public virtual DbSet<InterviewSchedule> InterviewSchedules { get; set; }
 
     public virtual DbSet<JobApplication> JobApplications { get; set; }
-    public virtual DbSet<InterviewInterviewerMap> InterviewInterviewerMaps { get; set; }
 
     public virtual DbSet<JobCandidateMatchMap> JobCandidateMatchMaps { get; set; }
 
@@ -187,13 +187,18 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.DocumentId).HasColumnName("document_id");
             entity.Property(e => e.ApplicationId).HasColumnName("application_id");
             entity.Property(e => e.CandidateId).HasColumnName("candidate_id");
+            entity.Property(e => e.Comment).HasMaxLength(500);
             entity.Property(e => e.DocumentType)
                 .HasMaxLength(50)
                 .HasColumnName("document_type");
             entity.Property(e => e.FilePath).HasColumnName("file_path");
+            entity.Property(e => e.Status)
+                .HasMaxLength(50)
+                .HasDefaultValue("PENDING");
             entity.Property(e => e.UploadedAt)
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnName("uploaded_at");
+            entity.Property(e => e.VerifiedBy).HasColumnName("Verified_By");
 
             entity.HasOne(d => d.Application).WithMany(p => p.CandidateDocuments)
                 .HasForeignKey(d => d.ApplicationId)
@@ -378,7 +383,7 @@ public partial class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_interviewschedule_roundtemplate");
 
-             
+           
         });
         modelBuilder.Entity<InterviewInterviewerMap>(entity =>
         {
@@ -387,10 +392,10 @@ public partial class AppDbContext : DbContext
             entity.ToTable("InterviewInterviewerMap");
 
             entity.Property(e => e.InterviewId)
-                .HasColumnName("interview_id");   
+                .HasColumnName("interview_id");    
 
             entity.Property(e => e.InterviewerUserId)
-                .HasColumnName("interviewer_user_id"); 
+                .HasColumnName("interviewer_user_id");  
 
             entity.HasOne(d => d.Interview)
                 .WithMany(p => p.InterviewInterviewerMaps)
@@ -471,9 +476,17 @@ public partial class AppDbContext : DbContext
 
             entity.HasIndex(e => new { e.JobId, e.CandidateId }, "UQ_Job_Candidate_2").IsUnique();
 
+            entity.Property(e => e.ApplicationId).HasColumnName("applicationId");
+            entity.Property(e => e.Comment)
+                .HasMaxLength(500)
+                .HasColumnName("comment");
+            entity.Property(e => e.IsDocumentVerified).HasColumnName("isDocumentVerified");
+            entity.Property(e => e.IsMovedToEmpTable).HasColumnName("isMoved_To_EmpTable");
+            entity.Property(e => e.JoiningDate).HasColumnName("joining_Date");
             entity.Property(e => e.SelectedOn)
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnType("datetime");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_By");
 
             entity.HasOne(d => d.Candidate).WithMany(p => p.JobCandidateSelecteds)
                 .HasForeignKey(d => d.CandidateId)

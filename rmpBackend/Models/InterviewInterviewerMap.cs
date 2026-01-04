@@ -7,6 +7,7 @@ namespace rmpBackend.Models
     {
        
             public int InterviewId { get; set; }
+
             [Column("Interviewer_User_Id")]
             public int InterviewerUserId { get; set; }
 

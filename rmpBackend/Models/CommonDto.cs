@@ -63,4 +63,22 @@
         public string Stage { get; set; }
         public DateTime AssessmentDate { get; set; }
     }
+    public enum EmailEventType
+    {
+        CandidateMovedToNextRound,
+        InterviewScheduled,
+        InterviewReminder,
+        FeedbackPending,
+        CustomRoundEnabled,
+        OnBoarding
+    }
+    public class EmailRequest
+    {
+        public EmailEventType EventType { get; set; }
+        public List<string> ToEmails { get; set; }
+
+        public Dictionary<string, string> Data { get; set; } = new();
+    }
+
+
 }

@@ -1,17 +1,18 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using System.Linq;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using rmpBackend.Models;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using System.Linq;
+using rmpBackend.Services.Email;
 
 namespace rmpBackend.Controllers
 {
     [Authorize(Roles = "interviewer, admin")]
     [Route("api/[controller]")]
     [ApiController]
-    public class InterviewerController(AppDbContext db) : ControllerBase
+    public class InterviewerController(AppDbContext db,IEmailService emailService) : ControllerBase
     {
         [HttpPost("schedule")]
         public async Task<IActionResult> CreateSchedule([FromBody] InterviewScheduleDto dto)
@@ -140,18 +141,51 @@ namespace rmpBackend.Controllers
         [HttpPut("schedule/{id}")]
         public async Task<IActionResult> UpdateSchedule(int id,[FromBody] InterviewScheduleUpdateDto dto)
         {
-            var schedule = await db.InterviewSchedules.FindAsync(id);
+            var schedule = await db.InterviewSchedules
+             .Include(s => s.Application)
+                 .ThenInclude(a => a.Candidate)
+             .FirstOrDefaultAsync(s => s.InterviewId == id);
+
             if (schedule == null)
                 return NotFound();
+
 
             if (dto.ApplicationId.HasValue)
                 schedule.ApplicationId = dto.ApplicationId.Value;
 
             if (dto.RoundTemplateId.HasValue)
                 schedule.RoundTemplateId = dto.RoundTemplateId.Value;
-
+            List<string> ToEmail = new List<string>();
             if (!string.IsNullOrEmpty(dto.Status))
+            {
                 schedule.Status = dto.Status;
+               
+                var allInterviewerEmail = await db.InterviewInterviewerMaps
+                   .Where(i => i.InterviewId == id)
+                   .Select(i => i.InterviewerUser.Email)
+                   .ToListAsync();
+                var recruiterId = await db.JobApplications
+                    .Where(a => a.ApplicationId == schedule.ApplicationId)
+                    .Select(j => j.Job.CreatedBy).FirstAsync();
+                var recruiterEmail = await db.Users.Where(u => u.UserId == recruiterId).Select(u => u.Email).FirstOrDefaultAsync();
+                ToEmail.AddRange(allInterviewerEmail);
+                ToEmail.Add(recruiterEmail);
+
+
+                await emailService.SendAsync(new EmailRequest
+                {
+                    EventType = EmailEventType.CandidateMovedToNextRound,
+                    ToEmails =  ToEmail,
+                    Data = new()
+                    {
+                        ["CandidateName"] = schedule.Application.Candidate.Name,
+                        ["CandidateMail"] = schedule.Application.Candidate.Email,
+                        ["MeetingLink"] =schedule.MeetingLink,
+                        ["ScheduleSeq"] =schedule.RoundSequence.ToString(),
+                        ["ApplicationId"] = schedule.ApplicationId.ToString()
+                    }
+                });
+            }
 
             if (dto.ScheduledStartTime.HasValue)
                 schedule.ScheduledStartTime = dto.ScheduledStartTime.Value;
@@ -177,7 +211,7 @@ namespace rmpBackend.Controllers
                 schedule.RoundSequence= dto.RoundSequence.Value;
 
             await db.SaveChangesAsync();
-            return Ok("success");
+            return Ok(ToEmail);
         }
 
 

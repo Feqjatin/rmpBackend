@@ -35,6 +35,5 @@ public partial class InterviewSchedule
     public virtual ICollection<InterviewRescheduleRequest> InterviewRescheduleRequests { get; set; } = new List<InterviewRescheduleRequest>();
 
     public virtual InterviewRoundTemplate RoundTemplate { get; set; } = null!;
-
-    public virtual ICollection<InterviewInterviewerMap> InterviewInterviewerMaps { get; set; } = new List<InterviewInterviewerMap>();
+    public virtual DbSet<InterviewInterviewerMap> InterviewInterviewerMaps { get; set; }
 }

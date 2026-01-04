@@ -6,14 +6,17 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;   
 using rmpBackend.Models;
 using rmpBackend.Services;
+using rmpBackend.Services.Email;
 
 namespace rmpBackend.Controllers
 {
     [Authorize(Roles = "recruiter, admin")]
     [Route("api/[controller]")]
     [ApiController]
-    public class RecruiterController(AppDbContext db,RankingService rankingService) : ControllerBase
+    public class RecruiterController(AppDbContext db,RankingService rankingService,IEmailService emailService) : ControllerBase
     {
+
+         
         [HttpGet("job-all")]
         public async Task<IActionResult> GetAllJobs()
         {

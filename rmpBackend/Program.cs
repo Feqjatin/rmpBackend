@@ -2,9 +2,11 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using rmpBackend.BackgroundJobs;
 using rmpBackend.middleware;
 using rmpBackend.Models;
 using rmpBackend.Services;
+using rmpBackend.Services.Email;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,7 +31,7 @@ builder.Services.AddAuthentication(options =>
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
-        ValidateAudience = false, // we don’t need Audience for now
+        ValidateAudience = false,  
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
         ValidIssuer = builder.Configuration["Jwt:Issuer"],
@@ -40,7 +42,10 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddAuthorization();
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IEmailTemplateProvider, EmailTemplateProvider>();
 builder.Services.AddHostedService<rmpBackend.BackgroundJobs.DbWorker>();
+builder.Services.AddHostedService<InterviewReminderService>();
 
 builder.Services.AddCors(options =>
 {

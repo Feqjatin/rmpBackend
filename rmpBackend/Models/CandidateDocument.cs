@@ -17,6 +17,12 @@ public partial class CandidateDocument
 
     public DateTime? UploadedAt { get; set; }
 
+    public string Status { get; set; } = null!;
+
+    public string? Comment { get; set; }
+
+    public int? VerifiedBy { get; set; }
+
     public virtual JobApplication? Application { get; set; }
 
     public virtual Candidate Candidate { get; set; } = null!;

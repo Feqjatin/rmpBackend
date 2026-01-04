@@ -13,7 +13,7 @@ namespace rmpBackend.Controllers
     public class CandidateController(AppDbContext db, RankingService rankingService) : ControllerBase
     {
 
-       
+
 
         [HttpPost("update-password/{candidateId}")]
         public async Task<IActionResult> UpdatePassword(int candidateId, [FromBody] string newPassword)
@@ -21,7 +21,7 @@ namespace rmpBackend.Controllers
             var candidate = await db.Candidates.FindAsync(candidateId);
             if (candidate == null) return NotFound("Candidate not found.");
 
-           
+
             candidate.PasswordHash = newPassword;
             await db.SaveChangesAsync();
 
@@ -30,7 +30,7 @@ namespace rmpBackend.Controllers
 
 
 
- 
+
         [HttpGet("profile/{candidateId}")]
         public async Task<IActionResult> GetProfile(int candidateId)
         {
@@ -127,7 +127,7 @@ namespace rmpBackend.Controllers
                             j.UpdatedAt,
                             j.ApplicationStatus,
 
-                            
+
                             Interview = j.ApplicationStatus.ToLower() == "interview"
                                 ? db.InterviewSchedules
                                     .Where(i => i.ApplicationId == j.ApplicationId)
@@ -137,6 +137,8 @@ namespace rmpBackend.Controllers
                                         MeetingLink = i.MeetingLink,
                                         i.ScheduledStartTime,
                                         i.ScheduledEndTime,
+                                        i.TestId,
+                                        i.TestScore,
                                     })
                                     .FirstOrDefault()
                                 : null
@@ -173,7 +175,7 @@ namespace rmpBackend.Controllers
 
             if (!string.IsNullOrEmpty(dto.NewPassword))
             {
-                candidate.PasswordHash = dto.NewPassword;  
+                candidate.PasswordHash = dto.NewPassword;
             }
 
             candidate.UpdatedAt = DateTime.UtcNow;
@@ -185,7 +187,7 @@ namespace rmpBackend.Controllers
 
 
 
-      
+
 
         [HttpPost("education/{candidateId}")]
         public async Task<IActionResult> AddEducation(int candidateId, [FromBody] CandidateEducationDto dto)
@@ -363,12 +365,12 @@ namespace rmpBackend.Controllers
         [HttpPost("skill/{candidateId}")]
         public async Task<IActionResult> AddSkill(int candidateId, [FromBody] CandidateSkillDto dto)
         {
-             
+
             var skillExists = await db.Skills.AnyAsync(s => s.SkillId == dto.SkillId);
             if (!skillExists)
                 return NotFound("Skill ID not found in master list.");
 
-             
+
             var existingMap = await db.CandidateSkillMaps
                 .FirstOrDefaultAsync(m => m.CandidateId == candidateId && m.SkillId == dto.SkillId);
 
@@ -421,7 +423,7 @@ namespace rmpBackend.Controllers
                 UploadedAt = DateTime.UtcNow
             };
 
-             
+
             if (dto.DocumentType.ToLower() == "resume")
             {
                 var candidate = await db.Candidates.FindAsync(candidateId);
@@ -549,7 +551,7 @@ namespace rmpBackend.Controllers
         {
             var req = await db.InterviewRescheduleRequests.FindAsync(requestId);
             if (req == null) return NotFound();
- 
+
             if (req.Status != "Pending")
             {
                 return BadRequest("Cannot delete a request that has already been processed.");
@@ -559,7 +561,18 @@ namespace rmpBackend.Controllers
             await db.SaveChangesAsync();
             return Ok("Reschedule request withdrawn.");
         }
+    
+
+        [HttpPost("invitationResponse")]
+        public async Task<IActionResult> InvitationResponse([FromBody] CandidateResponse req)
+        {
+            var application = await db.JobApplications.Where(a => a.ApplicationId == req.ApplicationId).FirstAsync();
+            if (application == null) return NotFound();
+            application.ApplicationStatus = req.Response;
+            application.StatusReason = "done by candidate";
+            await db.SaveChangesAsync();
+            return Ok("done");
+
+        }
     }
-
-
 }

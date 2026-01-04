@@ -13,6 +13,18 @@ public partial class JobCandidateSelected
 
     public DateTime? SelectedOn { get; set; }
 
+    public int ApplicationId { get; set; }
+
+    public DateOnly? JoiningDate { get; set; }
+
+    public bool IsMovedToEmpTable { get; set; }
+
+    public bool IsDocumentVerified { get; set; }
+
+    public int? UpdatedBy { get; set; }
+
+    public string? Comment { get; set; }
+
     public virtual Candidate Candidate { get; set; } = null!;
 
     public virtual JobOpening Job { get; set; } = null!;
