@@ -1,14 +1,16 @@
-﻿ using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 using rmpBackend.Models;
-using rmpBackend.Services;
+using rmpBackend.Models.DTOs;
+using rmpBackend.Services.Ranking;
 
 namespace rmpBackend.Controllers
 {
-    [Authorize(Roles = "recruiter, admin, reviewer,candidate,interviewer")]
+    [Authorize(Roles = "recruiter, admin, reviewer,interviewer,hr")]
     [Route("api/[controller]")]
     [ApiController]
     public class UtilController(AppDbContext db, RankingService rankingService) : ControllerBase
@@ -31,14 +33,9 @@ namespace rmpBackend.Controllers
                                         .FirstOrDefaultAsync();
 
             if (candidateId == null) return NotFound(new { message = $"Application with ID {req.ApplicationId} not found." });
-
-
-            
              
-
             var newAssessmentsToAdd = new List<SkillAssessment>();
-
-            
+             
             foreach (var item in req.Assessments)
             {
                 decimal? yearsExperience = null;
@@ -57,9 +54,7 @@ namespace rmpBackend.Controllers
                         Console.WriteLine($"Warning: Could not parse years '{item.Years}' for skill {item.SkillId}");
                     }
                 }
-
-                
-                     
+                 
                     newAssessmentsToAdd.Add(new SkillAssessment
                     {
                         ApplicationId = req.ApplicationId,
@@ -74,8 +69,6 @@ namespace rmpBackend.Controllers
                     });
                 
             }
-
-             
             if (newAssessmentsToAdd.Any())
             {
                 await db.SkillAssessments.AddRangeAsync(newAssessmentsToAdd);
@@ -93,6 +86,7 @@ namespace rmpBackend.Controllers
             await rankingService.UpdateForExistingCandidate(candidateId.Value);
             return Ok(new { message = "Skill assessments saved successfully." });
         }
+
         [HttpGet("getSkillAssessments/{candidateId}")]
         public async Task<IActionResult> GetSkillAssessmentsForCandidate(int candidateId)
         {
@@ -131,7 +125,7 @@ namespace rmpBackend.Controllers
             return Ok(assessments);
         }
 
-            [HttpPost("feedback-create")]
+        [HttpPost("feedback-create")]
         public async Task<IActionResult> CreateFeedback([FromBody] CreateFeedbackDto createDto)
         {
             var feedback = new ApplicationFeedback
@@ -236,11 +230,7 @@ namespace rmpBackend.Controllers
 
             return NoContent();
         }
-
-
-
-
-
+ 
 
         [HttpGet("jobViaId/{id}")]
         public async Task<IActionResult> GetJob(int id)
@@ -289,12 +279,7 @@ namespace rmpBackend.Controllers
             {
                 return NotFound(new { message = $"Role '{req.Role}' not found." });
             }
-
              
-            
-
-            
-            
                 
                 var newComment = new ApplicationFeedback
                 {
@@ -306,9 +291,7 @@ namespace rmpBackend.Controllers
                     CreatedAt = DateTime.UtcNow
                 };
                 db.ApplicationFeedbacks.Add(newComment);
-            
-
-          
+              
             await db.SaveChangesAsync();
             return Ok(new { message = "Comment saved successfully." });
         }
@@ -358,9 +341,9 @@ namespace rmpBackend.Controllers
             return Ok(applications);
         }
 
-            [HttpGet("getMatchByCandidateId/{candidateId}")]
-            public async Task<IActionResult> GetMatchByCandidate(int candidateId)
-            {
+         [HttpGet("getMatchByCandidateId/{candidateId}")]
+         public async Task<IActionResult> GetMatchByCandidate(int candidateId)
+         {
                 var applications = await db.JobCandidateMatchMaps
                     .Where(j => j.CandidateId == candidateId)
                     .Include(j => j.Job)
@@ -377,10 +360,8 @@ namespace rmpBackend.Controllers
 
 
                 return Ok(applications);
-            }
-
-
-
+         }
+         
         private async Task<(bool Success, string Message)> AddInterviewerInternal(int interviewId,int userId)
         {
             if (!await db.InterviewSchedules.AnyAsync(i => i.InterviewId == interviewId))
@@ -418,6 +399,7 @@ namespace rmpBackend.Controllers
             db.InterviewInterviewerMaps.Remove(mapping);
             return (true, "Removed");
         }
+
         [HttpPost("add-interviewer")]
         public async Task<IActionResult> AddInterviewer(int interviewId, int userId)
         {
@@ -529,6 +511,7 @@ namespace rmpBackend.Controllers
             await db.SaveChangesAsync();
             return Ok("success");
         }
+
         [HttpPut("schedule/bulk")]
         public async Task<IActionResult> BulkUpdateSchedule([FromBody] BulkInterviewScheduleUpdateDto dto)
         {
@@ -552,7 +535,181 @@ namespace rmpBackend.Controllers
             });
         }
 
+        [HttpGet("getCandidate/{candidateId}")]
+        public async Task<IActionResult> GetCandidate(int candidateId)
+        {
+            var applications = await db.JobCandidateMatchMaps
+                   .Where(j => j.CandidateId == candidateId)
+                   .Include(j => j.Job)
+                   .Select(j => new {
+                       j.JobId,
+                       j.Job.Title,
+                       j.Job.Description,
+                       j.Job.Status,
+                       j.Job.Location,
+                       j.Rank
+                   }
+                   )
+                   .ToListAsync();
 
+            var candidate = await db.Candidates
+                .Where(c => c.CandidateId == candidateId)
+                .Select(c => new
+                {
+                    c.CandidateId,
+                    c.Name,
+                    c.Email,
+                    c.Phone,
+                    c.ResumePath,
+                    c.Status,
+                    c.CreatedAt,
+                    c.UpdatedAt,
+                    c.Address,
+                    c.City,
+                    c.State,
+                    c.ZipCode,
+                    c.LinkedinUrl,
+                    c.GithubUrl,
+                    c.PortfolioUrl,
+                    c.ProfileSummary,
+
+                    candidateEducations = c.CandidateEducations.Select(e => new
+                    {
+                        e.EducationId,
+                        e.CandidateId,
+                        e.Degree,
+                        e.Institution,
+                        e.FieldOfStudy,
+                        e.StartDate,
+                        e.EndDate,
+                        e.Grade,
+                        e.Description
+                    }).ToList(),
+
+                    candidateExperiences = c.CandidateExperiences.Select(ex => new
+                    {
+                        ex.ExperienceId,
+                        ex.CandidateId,
+                        ex.JobTitle,
+                        ex.CompanyName,
+                        ex.StartDate,
+                        ex.EndDate,
+                        ex.IsCurrentJob,
+                        ex.Description,
+                        ex.Location
+                    }).ToList(),
+
+                    candidateSkillMaps = c.CandidateSkillMaps.Select(sm => new
+                    {
+                        sm.CandidateId,
+                        sm.SkillId,
+                        sm.ProficiencyLevel,
+                        Skill = new
+                        {
+                            sm.Skill.SkillId,
+                            sm.Skill.SkillName
+                        }
+                    }).ToList(),
+
+
+
+                    jobApplications = c.JobApplications
+                        .Select(j => new
+                        {
+                            j.ApplicationId,
+                            j.CandidateId,
+                            j.JobId,
+                            j.AppliedAt,
+                            j.UpdatedAt,
+                            j.ApplicationStatus,
+
+                        })
+                        .ToList(),
+
+                    JobMatch = applications,
+
+                })
+                .FirstOrDefaultAsync();
+
+            if (candidate == null)
+                return NotFound("Candidate not found.");
+
+            return Ok(candidate);
+        }
+
+        [HttpGet("getApplication/{applicationId}")]
+        public async Task<IActionResult> GetApplication(int applicationId)
+        {
+            var application = await db.JobApplications.Where(a => a.ApplicationId == applicationId)
+                .Include(a => a.SkillAssessments)
+                    .ThenInclude(sa => sa.Skill)
+                .Include(a => a.SkillAssessments)
+                    .ThenInclude(sa => sa.AssessedByUser)
+                .Include(a => a.SkillAssessments)
+                    .ThenInclude(sa => sa.AssessedInRole)
+                .Include(a => a.ApplicationFeedbacks)
+                 .ThenInclude(af => af.User)
+                 .Include(a => a.ApplicationFeedbacks)
+                 .ThenInclude(af => af.UserRole)
+                .Include(a => a.InterviewSchedules)
+                .Include(a => a.ReviewerActions)
+                .Select(a => new
+                {
+                    a.ApplicationId,
+                    a.JobId,
+                    a.AppliedAt,
+                    a.UpdatedAt,
+                    a.ApplicationStatus,
+                    a.StatusReason,
+                    a.CandidateId,
+                    a.Rank,
+
+                    SkillAssessments = a.SkillAssessments.Select(sa => new
+                    {
+                        AssessmentId = sa.AssessmentId,
+                        SkillName = sa.Skill.SkillName,
+                        YearsOfExperience = sa.YearsOfExperience,
+                        Comment = sa.Comment,
+                        AssessedByUserName = sa.AssessedByUser.Username,
+                        AssessedInRoleName = sa.AssessedInRole.RoleName,
+                        Stage = sa.Stage,
+                        AssessmentDate = sa.AssessmentDate
+
+                    }).ToList(),
+
+                    ApplicationFeedbacks = a.ApplicationFeedbacks.Select(f => new {
+
+                        FeedbackId = f.FeedbackId,
+                        UserName = f.User.Username,
+                        UserRole = f.UserRole.RoleName,
+                        FeedbackStage = f.FeedbackStage,
+                        CommentText = f.CommentText,
+                        CreatedAt = f.CreatedAt,
+
+
+                    }).ToList(),
+
+                    Interviews = a.InterviewSchedules.Select(a => new
+                    {
+                        RoundTemplateId = a.RoundTemplateId,
+                        Status = a.Status,
+                        ScheduledStartTime = a.ScheduledStartTime,
+                        ScheduledEndTime = a.ScheduledEndTime,
+                        RoundSequence = a.RoundSequence,
+                    }).ToList(),
+
+                    ReviewStage = a.ReviewerActions.Select(a => new
+                    {
+                        Status = a.Status,
+                        ActionDate = a.ActionDate,
+
+                    }).ToList(),
+
+                })
+                .FirstOrDefaultAsync();
+            if (application == null) return BadRequest("No Application Found");
+            return Ok(application);
+        }
     }
 }
 

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using rmpBackend.Models;
+using rmpBackend.Models.DTOs;
 using rmpBackend.Services.Email;
 
 namespace rmpBackend.Controllers
@@ -33,7 +34,6 @@ namespace rmpBackend.Controllers
             return Ok(schedule);
         }
 
-    
 
         [HttpGet("schedule/by-user/{userName}")]
         public async Task<IActionResult> GetSchedulesByUserName(string username)
@@ -68,10 +68,10 @@ namespace rmpBackend.Controllers
                     ScheduledEndTime = s.ScheduledEndTime,
                     MeetingLink = s.MeetingLink,
                     Location = s.Location,
-                    ApplicationId =s.ApplicationId,
+                    ApplicationId = s.ApplicationId,
                     RoundScore = s.RoundScore,
-                    TestId=s.TestId,
-                    TestScore=s.TestScore,
+                    TestId = s.TestId,
+                    TestScore = s.TestScore,
 
                     RoundInfo = new
                     {
@@ -81,10 +81,12 @@ namespace rmpBackend.Controllers
                     },
 
                     CandidateInfo = new
-                    {   s.Application.Candidate.CandidateId,
+                    {
+                        s.Application.Candidate.CandidateId,
                         s.Application.Candidate.Name,
                         s.Application.Candidate.Email,
-                        s.Application.Candidate.Phone
+                        s.Application.Candidate.Phone,
+                        s.Application.Candidate.ResumePath
                     },
 
 
@@ -119,14 +121,7 @@ namespace rmpBackend.Controllers
 
             return Ok(schedules);
         }
-            //[HttpGet("schedule/{id}")]
-            //public async Task<IActionResult> GetScheduleById(int id)
-            //{
-            //    var schedule = await db.InterviewSchedules.FindAsync(id);
-            //    return schedule == null ? NotFound() : Ok(schedule);
-            //}
-
-
+        
         [HttpGet("schedule/by-application/{applicationId}")]
         public async Task<IActionResult> GetSchedulesByApplicationId(int applicationId)
         {
@@ -359,10 +354,8 @@ namespace rmpBackend.Controllers
                    i.TestScore,
                    i.RoundScore,
                    i.RoundSequence
-
-
-
-    })
+ 
+                 })
                 .ToArrayAsync();
             if(!allInterview.Any())
             {

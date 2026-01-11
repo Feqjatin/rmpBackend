@@ -1,22 +1,24 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
-using Microsoft.EntityFrameworkCore;   
+using Microsoft.EntityFrameworkCore;
 using rmpBackend.Models;
-using rmpBackend.Services;
+using rmpBackend.Models.DTOs;
 using rmpBackend.Services.Email;
+using rmpBackend.Services.Evalution;
+using rmpBackend.Services.Ranking;
 
 namespace rmpBackend.Controllers
 {
     [Authorize(Roles = "recruiter, admin")]
     [Route("api/[controller]")]
     [ApiController]
-    public class RecruiterController(AppDbContext db,RankingService rankingService,IEmailService emailService) : ControllerBase
+    public class RecruiterController(AppDbContext db,RankingService rankingService,IEmailService emailService,IApplicationEvaluationService evaluationService) : ControllerBase
     {
-
-         
+ 
         [HttpGet("job-all")]
         public async Task<IActionResult> GetAllJobs()
         {
@@ -146,8 +148,6 @@ namespace rmpBackend.Controllers
             return Ok("Job updated successfully.");
         }
 
-
-
         [HttpPost("job-create")]
         public async Task<IActionResult> CreateJob([FromBody] NewJobDto req)
         {
@@ -190,7 +190,6 @@ namespace rmpBackend.Controllers
             await rankingService.UpdateForNewJob(job.JobId);
             return Ok("done");
         }
-
 
 
         [HttpDelete("job-delete")]
@@ -287,6 +286,15 @@ namespace rmpBackend.Controllers
             await db.Candidates.AddAsync(candidate);
             await db.SaveChangesAsync();
             await rankingService.UpdateForNewCandidate(candidate.CandidateId);
+            await emailService.SendAsync(new EmailRequest
+            {
+                EventType = EmailEventType.CandidateCreated,
+                ToEmails = new List<string> {req.Email},
+                Data = new()
+                {
+                    ["CandidateName"] = req.Name,
+                }
+            });
 
             return Ok(candidate);
         }
@@ -458,20 +466,7 @@ namespace rmpBackend.Controllers
             await db.SaveChangesAsync();
             return Ok(template.RoundTemplateId);
         }
-
-        //[HttpGet("round-template")]
-        //public async Task<IActionResult> GetAllRoundTemplates()
-        //{
-        //    var all= await db.InterviewRoundTemplates.ToListAsync()
-        //    return Ok();
-        //}
-
-        //[HttpGet("round-template/{id}")]
-        //public async Task<IActionResult> GetRoundTemplateById(int id)
-        //{
-        //    var template = await db.InterviewRoundTemplates.FindAsync(id);
-        //    return template == null ? NotFound() : Ok(template);
-        //}
+ 
 
         [HttpGet("round-template/by-job/{jobId}")]
         public async Task<IActionResult> GetRoundTemplatesByJobId(int jobId)
@@ -597,8 +592,7 @@ namespace rmpBackend.Controllers
                     i.MeetingLink,
                     i.Location,
                     i.RoundSequence,
-                    i.TestId,
-
+                    i.TestId, 
 
                     Round = new
                     {
@@ -629,8 +623,7 @@ namespace rmpBackend.Controllers
         }
 
         [HttpPost("bulkApplicationCreate")]
-        public async Task<IActionResult> BulkApplicationCreate(
-    [FromBody] BulkApplicationCreateDto dto)
+        public async Task<IActionResult> BulkApplicationCreate([FromBody] BulkApplicationCreateDto dto)
         {
             if (dto.CandidateIds == null || !dto.CandidateIds.Any())
                 return BadRequest("CandidateIds are required");
@@ -687,9 +680,58 @@ namespace rmpBackend.Controllers
             return Ok(allCandidate);
         }
 
+        [HttpGet("job/final-evaluation/{jobId}")]
+        public async Task<IActionResult> GetFinalEvaluation(int jobId)
+        {
+            var data = await evaluationService.EvaluateApplicationsByJob(jobId);
+            return Ok(data);
+        }
+        [HttpPost("bulkCandidateSelect")]
+        public async Task<IActionResult> BulkCandidateSelect([FromBody] BulkCandidateSelectForFinaleDto req)
+        {
+            if (req.Ids == null || req.Ids.Count == 0)
+                return BadRequest("No application ids provided");
+
+            var applications = await db.JobApplications
+                 .Where(a => req.Ids.Contains(a.ApplicationId))
+                 .ToListAsync();
 
 
+            if (!applications.Any())
+                return NotFound("No valid applications found");
+ 
+            var alreadySelected = await db.JobCandidateSelecteds
+                .Where(x => req.Ids.Contains(x.ApplicationId))
+                .Select(x => x.ApplicationId)
+                .ToListAsync();
 
+            var newSelections = new List<JobCandidateSelected>();
+            foreach (var app in applications)
+            {
+                if (alreadySelected.Contains(app.ApplicationId))
+                    continue;
+
+                newSelections.Add(new JobCandidateSelected
+                {
+                    ApplicationId = app.ApplicationId,
+                    JobId = app.JobId,
+                    CandidateId = app.CandidateId,
+                    SelectedOn = DateTime.UtcNow,
+                    JoiningDate = null,
+                    IsMovedToEmpTable = false,
+                    IsDocumentVerified = false,
+                    Comment = null,
+                });
+ 
+                app.ApplicationStatus = "Selected";
+                app.UpdatedAt = DateTime.UtcNow;
+            }
+ 
+            await db.JobCandidateSelecteds.AddRangeAsync(newSelections);
+            await db.SaveChangesAsync();
+
+            return Ok("done");
+        }
 
 
 

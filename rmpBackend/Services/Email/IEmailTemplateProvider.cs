@@ -1,4 +1,4 @@
-﻿using rmpBackend.Models;
+﻿using rmpBackend.Models.DTOs;
 
 namespace rmpBackend.Services.Email
 {

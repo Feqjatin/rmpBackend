@@ -1,7 +1,5 @@
-﻿ 
- 
-namespace rmpBackend.Models
-{ 
+﻿namespace rmpBackend.Models.DTOs
+{
     public class NewJobDto
     {
         public string Title { get; set; } = null!;
@@ -9,11 +7,11 @@ namespace rmpBackend.Models
         public string? Location { get; set; }
         public string? Status { get; set; }
         public int? MinExperience { get; set; }
-        public string Username { get; set; } = null!;  
+        public string Username { get; set; } = null!;
         public List<JobSkillDto> Skills { get; set; } = new();
     }
 
-    
+
     public class UpdateJobDto
     {
         public int JobId { get; set; }
@@ -26,18 +24,18 @@ namespace rmpBackend.Models
         public List<JobSkillDto> Skills { get; set; } = new();
     }
 
-    
+
     public class JobSkillDto
     {
-        public int Id { get; set; }  
-        public string? Type { get; set; }  
+        public int Id { get; set; }
+        public string? Type { get; set; }
     }
- 
+
     public class DeleteJobDto
     {
         public int JobId { get; set; }
     }
- 
+
     public class NewSkillDto
     {
         public string SkillName { get; set; } = null!;
@@ -83,5 +81,18 @@ namespace rmpBackend.Models
         public int JobId { get; set; }
     }
 
+    public class ApplicationFinalScoreDto
+    {
+        public int ApplicationId { get; set; }
+        public int CandidateId { get; set; }
 
+        public decimal FinalWeightedScore { get; set; }
+
+
+        public decimal? SentimentScore { get; set; }
+    }
+    public class BulkCandidateSelectForFinaleDto
+    {
+        public List<int> Ids { get; set; }=new();
+    }
 }

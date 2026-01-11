@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace rmpBackend.Models
+namespace rmpBackend.Models.DTOs
 {
     public class CreateCandidateDto
     {
@@ -149,7 +149,6 @@ namespace rmpBackend.Models
         }
         public class CandidateResponse
         {
-        
             public int ApplicationId { get; set; }
             public string Response { get; set; }
         }
@@ -161,8 +160,8 @@ namespace rmpBackend.Models
             [Required]
             public string DocumentType { get; set; } 
             [Required]
-            public string FilePath { get; set; }
-        }
+            public IFormFile File { get; set; }
+    }
 
         
         public class RescheduleRequestDto

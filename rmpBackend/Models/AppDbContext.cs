@@ -32,9 +32,10 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<InterviewRescheduleRequest> InterviewRescheduleRequests { get; set; }
 
     public virtual DbSet<InterviewRoundTemplate> InterviewRoundTemplates { get; set; }
-    public virtual DbSet<InterviewInterviewerMap> InterviewInterviewerMaps { get; set; }
 
     public virtual DbSet<InterviewSchedule> InterviewSchedules { get; set; }
+
+    public virtual DbSet<InterviewInterviewerMap> InterviewInterviewerMaps { get; set; }
 
     public virtual DbSet<JobApplication> JobApplications { get; set; }
 
@@ -50,11 +51,9 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<Permission> Permissions { get; set; }
 
+    public virtual DbSet<RecoverAccount> RecoverAccounts { get; set; }
+
     public virtual DbSet<ReviewerAction> ReviewerActions { get; set; }
-
-    public virtual DbSet<ReviewerEvaluationCriterion> ReviewerEvaluationCriteria { get; set; }
-
-    public virtual DbSet<ReviewerEvaluationScore> ReviewerEvaluationScores { get; set; }
 
     public virtual DbSet<Role> Roles { get; set; }
 
@@ -64,9 +63,6 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<User> Users { get; set; }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Server=localhost\\SQLEXPRESS;Database=jatinYY;Trusted_Connection=True;TrustServerCertificate=True;");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -383,8 +379,9 @@ public partial class AppDbContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_interviewschedule_roundtemplate");
 
-           
+         
         });
+
         modelBuilder.Entity<InterviewInterviewerMap>(entity =>
         {
             entity.HasKey(e => new { e.InterviewId, e.InterviewerUserId });
@@ -470,7 +467,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<JobCandidateSelected>(entity =>
         {
-            entity.HasKey(e => e.JobCandidateSelectedId).HasName("PK__JobCandi__B50C78EDC187B19F");
+            entity.HasKey(e => e.JobCandidateSelectedId).HasName("PK_JobCandi_B50C78EDC187B19F");
 
             entity.ToTable("JobCandidateSelected");
 
@@ -592,6 +589,21 @@ public partial class AppDbContext : DbContext
                 .HasColumnName("permission_name");
         });
 
+        modelBuilder.Entity<RecoverAccount>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__RecoverA__3214EC073CC51435");
+
+            entity.ToTable("RecoverAccount");
+
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getutcdate())");
+            entity.Property(e => e.Email)
+                .HasMaxLength(255)
+                .IsUnicode(false);
+            entity.Property(e => e.OtpHash)
+                .HasMaxLength(255)
+                .IsUnicode(false);
+        });
+
         modelBuilder.Entity<ReviewerAction>(entity =>
         {
             entity.HasKey(e => new { e.ApplicationId, e.ReviewerUserId }).HasName("PK__Reviewer__A91A9B26552CAB87");
@@ -616,49 +628,6 @@ public partial class AppDbContext : DbContext
             entity.HasOne(d => d.ReviewerUser).WithMany(p => p.ReviewerActions)
                 .HasForeignKey(d => d.ReviewerUserId)
                 .HasConstraintName("fk_action_user");
-        });
-
-        modelBuilder.Entity<ReviewerEvaluationCriterion>(entity =>
-        {
-            entity.HasKey(e => e.CriteriaId).HasName("PK__Reviewer__401F949D12048E89");
-
-            entity.Property(e => e.CriteriaId).HasColumnName("criteria_id");
-            entity.Property(e => e.CriteriaName)
-                .HasMaxLength(255)
-                .HasColumnName("criteria_name");
-            entity.Property(e => e.JobId).HasColumnName("job_id");
-            entity.Property(e => e.MaxScore)
-                .HasDefaultValue(10)
-                .HasColumnName("max_score");
-
-            entity.HasOne(d => d.Job).WithMany(p => p.ReviewerEvaluationCriteria)
-                .HasForeignKey(d => d.JobId)
-                .HasConstraintName("fk_criteria_job");
-        });
-
-        modelBuilder.Entity<ReviewerEvaluationScore>(entity =>
-        {
-            entity.HasKey(e => new { e.ApplicationId, e.CriteriaId, e.ReviewerUserId }).HasName("PK__Reviewer__B6E731C6657FC819");
-
-            entity.ToTable("ReviewerEvaluationScore");
-
-            entity.Property(e => e.ApplicationId).HasColumnName("application_id");
-            entity.Property(e => e.CriteriaId).HasColumnName("criteria_id");
-            entity.Property(e => e.ReviewerUserId).HasColumnName("reviewer_user_id");
-            entity.Property(e => e.Score).HasColumnName("score");
-
-            entity.HasOne(d => d.Application).WithMany(p => p.ReviewerEvaluationScores)
-                .HasForeignKey(d => d.ApplicationId)
-                .HasConstraintName("fk_score_application");
-
-            entity.HasOne(d => d.Criteria).WithMany(p => p.ReviewerEvaluationScores)
-                .HasForeignKey(d => d.CriteriaId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("fk_score_criteria");
-
-            entity.HasOne(d => d.ReviewerUser).WithMany(p => p.ReviewerEvaluationScores)
-                .HasForeignKey(d => d.ReviewerUserId)
-                .HasConstraintName("fk_score_user");
         });
 
         modelBuilder.Entity<Role>(entity =>

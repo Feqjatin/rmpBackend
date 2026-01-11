@@ -5,8 +5,11 @@ using Microsoft.IdentityModel.Tokens;
 using rmpBackend.BackgroundJobs;
 using rmpBackend.middleware;
 using rmpBackend.Models;
+using rmpBackend.Models.DTOs;
 using rmpBackend.Services;
 using rmpBackend.Services.Email;
+using rmpBackend.Services.Evalution;
+using rmpBackend.Services.Upload;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,7 +22,7 @@ builder.Services.AddSwaggerGen();
 
 var provider=builder.Services.BuildServiceProvider();
 var config = provider.GetRequiredService<IConfiguration>();
-builder.Services.AddDbContext<AppDbContext>(item => item.UseSqlServer(config.GetConnectionString("dbcs")));
+builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(config.GetConnectionString("dbcs")));
 
 builder.Services.AddAuthentication(options =>
 {
@@ -46,6 +49,13 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IEmailTemplateProvider, EmailTemplateProvider>();
 builder.Services.AddHostedService<rmpBackend.BackgroundJobs.DbWorker>();
 builder.Services.AddHostedService<InterviewReminderService>();
+builder.Services.Configure<CloudinarySettings>(
+    builder.Configuration.GetSection("Cloudinary")
+    );
+builder.Services.AddScoped<IApplicationEvaluationService, ApplicationEvaluationService>();
+
+builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
+
 
 builder.Services.AddCors(options =>
 {

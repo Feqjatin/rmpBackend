@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace rmpBackend.Models
+namespace rmpBackend.Models.DTOs
 {
      
     public class InterviewRoundTemplateDto

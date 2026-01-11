@@ -6,9 +6,6 @@ namespace rmpBackend.BackgroundJobs
 {
     public class DbWorker : BackgroundService
     {
-
-  
-    
             private readonly IServiceScopeFactory _scopeFactory;
 
             public DbWorker(IServiceScopeFactory scopeFactory)

@@ -8,8 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using rmpBackend.Models;
-
- 
+using rmpBackend.Models.DTOs;
 
 namespace rmpBackend.Controllers
 {
@@ -89,7 +88,13 @@ namespace rmpBackend.Controllers
         {
             var applications = await db.JobApplications
                 .Where(ja => ja.JobId == jobId)
-                .Select(ja => new { ja.ApplicationId,ja.CandidateId})
+                .Include(a=>a.Candidate)
+                .Select(ja => new { 
+                    appId=ja.ApplicationId,
+                    candidateId=ja.CandidateId,
+                    candidateName=ja.Candidate.Name,
+                    candidateResume = ja.Candidate.ResumePath
+                })
                  
                 .ToListAsync();
 
@@ -98,7 +103,7 @@ namespace rmpBackend.Controllers
                 return Ok(new List<ReviewerApplicationActionDto>());
             }
 
-            var applicationIds = applications.Select(a => a.ApplicationId).ToList();
+            var applicationIds = applications.Select(a => a.appId).ToList();
 
             var existingActions = await db.ReviewerActions
                     .Where(ra => applicationIds.Contains(ra.ApplicationId))
@@ -110,12 +115,14 @@ namespace rmpBackend.Controllers
 
             var results = applications.Select(app =>
             {
-                if (existingActions.TryGetValue(app.ApplicationId, out var action))
+                if (existingActions.TryGetValue(app.appId, out var action))
                 {
                     return new ReviewerApplicationActionDto
                     {
-                        ApplicationId = app.ApplicationId,
-                        CandidateId=app.CandidateId,
+                        ApplicationId = app.appId,
+                        CandidateId=app.candidateId,
+                        CandidateName=app.candidateName,
+                        CandiateResumePath=app.candidateResume,
                         ReviewerUserId = action.ReviewerUserId,
                         Status = action.Status,
                         IsPublished = action.IsPublished,
@@ -127,8 +134,10 @@ namespace rmpBackend.Controllers
                 {
                     return new ReviewerApplicationActionDto
                     {
-                        ApplicationId = app.ApplicationId,
-                        CandidateId = app.CandidateId,
+                        ApplicationId = app.appId,
+                        CandidateId = app.candidateId,
+                        CandidateName = app.candidateName,
+                        CandiateResumePath = app.candidateResume,
                         ReviewerUserId = null,
                         Status = "New",
                         IsPublished = false,
@@ -140,9 +149,7 @@ namespace rmpBackend.Controllers
 
             return Ok(results);
         }
-
-
-
+         
 
         [HttpPost("bulk-update-status")]
         public async Task<IActionResult> BulkUpdateApplicationStatus([FromBody] BulkReviewerActionDto req)
@@ -234,7 +241,7 @@ namespace rmpBackend.Controllers
                 }
             }
             if (Ids.Count > 0)
-            {
+            {   
                 rmpBackend.Queue.InMemoryQueue.Queue.Enqueue(Ids);
             }
            
@@ -300,11 +307,9 @@ namespace rmpBackend.Controllers
                     IsPublished = false 
                 };
                 db.ReviewerActions.Add(newAction);
-                 
-
+               
             }
-
-             
+ 
             await db.SaveChangesAsync();
 
             return Ok(new { message = "Note updated successfully." });

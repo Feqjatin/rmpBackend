@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using rmpBackend.Models;
+using rmpBackend.Models.DTOs;
 
 namespace rmpBackend.Controllers
 {
@@ -135,7 +136,7 @@ namespace rmpBackend.Controllers
                 u.UpdatedAt
 
             })
-                                               .ToListAsync();
+           .ToListAsync();
 
             return Ok(users);
         }

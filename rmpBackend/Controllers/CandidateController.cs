@@ -1,20 +1,21 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using CloudinaryDotNet;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 using rmpBackend.Models;
-using rmpBackend.Services;
+using rmpBackend.Models.DTOs;
+using rmpBackend.Services.Ranking;
+using rmpBackend.Services.Upload;
 
 namespace rmpBackend.Controllers
 {
     [Authorize(Roles = "candidate")]
     [Route("api/[controller]")]
     [ApiController]
-    public class CandidateController(AppDbContext db, RankingService rankingService) : ControllerBase
-    {
-
-
-
+    public class CandidateController(AppDbContext db, RankingService rankingService,ICloudinaryService cloudinaryService) : ControllerBase
+    { 
         [HttpPost("update-password/{candidateId}")]
         public async Task<IActionResult> UpdatePassword(int candidateId, [FromBody] string newPassword)
         {
@@ -27,13 +28,25 @@ namespace rmpBackend.Controllers
 
             return Ok("Password updated successfully.");
         }
-
-
-
+         
 
         [HttpGet("profile/{candidateId}")]
         public async Task<IActionResult> GetProfile(int candidateId)
         {
+            var applications = await db.JobCandidateMatchMaps
+                    .Where(j => j.CandidateId == candidateId)
+                    .Include(j => j.Job)
+                    .Select(j => new {
+                        j.JobId,
+                        j.Job.Title,
+                        j.Job.Description,
+                        j.Job.Status,
+                        j.Job.Location,
+                        j.Rank
+                    }
+                    )
+                    .ToListAsync();
+
             var candidate = await db.Candidates
                 .Where(c => c.CandidateId == candidateId)
                 .Select(c => new
@@ -46,7 +59,6 @@ namespace rmpBackend.Controllers
                     c.Status,
                     c.CreatedAt,
                     c.UpdatedAt,
-                    c.PasswordHash,
                     c.Address,
                     c.City,
                     c.State,
@@ -63,7 +75,9 @@ namespace rmpBackend.Controllers
                         d.ApplicationId,
                         d.DocumentType,
                         d.FilePath,
-                        d.UploadedAt
+                        d.UploadedAt,
+                        d.Comment,
+                        d.Status
                     }).ToList(),
 
                     candidateEducations = c.CandidateEducations.Select(e => new
@@ -145,7 +159,7 @@ namespace rmpBackend.Controllers
                         })
                         .ToList(),
 
-
+                      JobMatch=applications,
 
                 })
                 .FirstOrDefaultAsync();
@@ -183,11 +197,7 @@ namespace rmpBackend.Controllers
 
             return Ok("Profile updated successfully.");
         }
-
-
-
-
-
+ 
 
         [HttpPost("education/{candidateId}")]
         public async Task<IActionResult> AddEducation(int candidateId, [FromBody] CandidateEducationDto dto)
@@ -266,9 +276,7 @@ namespace rmpBackend.Controllers
             await db.SaveChangesAsync();
             return Ok("Education deleted.");
         }
-
-
-
+ 
 
         [HttpPost("experience/{candidateId}")]
         public async Task<IActionResult> AddExperience(int candidateId, [FromBody] CandidateExperienceDto dto)
@@ -334,9 +342,7 @@ namespace rmpBackend.Controllers
 
             return Ok(result);
         }
-
-
-
+ 
         [HttpDelete("experience/{experienceId}")]
         public async Task<IActionResult> DeleteExperience(int experienceId)
         {
@@ -412,14 +418,28 @@ namespace rmpBackend.Controllers
 
 
         [HttpPost("document/{candidateId}")]
-        public async Task<IActionResult> UploadDocument(int candidateId, [FromBody] CandidateDocumentDto dto)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UploadDocument(int candidateId, [FromForm] CandidateDocumentDto dto)
         {
+            var FilePath="";
+            try
+            {
+                FilePath = await cloudinaryService.UploadPdfAsync(
+                    dto.File,
+                    $"applications/{candidateId}"
+                );
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            
             var doc = new CandidateDocument
             {
                 CandidateId = candidateId,
                 ApplicationId = dto.ApplicationId,
                 DocumentType = dto.DocumentType,
-                FilePath = dto.FilePath,
+                FilePath = FilePath,
                 UploadedAt = DateTime.UtcNow
             };
 
@@ -428,7 +448,7 @@ namespace rmpBackend.Controllers
             {
                 var candidate = await db.Candidates.FindAsync(candidateId);
                 if (candidate != null)
-                    candidate.ResumePath = dto.FilePath;
+                    candidate.ResumePath = FilePath;
             }
 
             db.CandidateDocuments.Add(doc);
@@ -466,8 +486,7 @@ namespace rmpBackend.Controllers
 
             return Ok(docs);
         }
-
-
+ 
         [HttpDelete("document/{documentId}")]
         public async Task<IActionResult> DeleteDocument(int documentId)
         {
@@ -479,8 +498,6 @@ namespace rmpBackend.Controllers
 
             return Ok("Document deleted successfully.");
         }
-
-
 
 
         [HttpPost("reschedule-request")]
@@ -522,7 +539,7 @@ namespace rmpBackend.Controllers
             return Ok(response);
         }
 
-
+ 
         [HttpGet("reschedule-request/{candidateId}")]
         public async Task<IActionResult> GetRescheduleRequests(int candidateId)
         {
@@ -544,8 +561,7 @@ namespace rmpBackend.Controllers
 
             return Ok(requests);
         }
-
-
+ 
         [HttpDelete("reschedule-request/{requestId}")]
         public async Task<IActionResult> DeleteRescheduleRequest(int requestId)
         {
@@ -561,8 +577,7 @@ namespace rmpBackend.Controllers
             await db.SaveChangesAsync();
             return Ok("Reschedule request withdrawn.");
         }
-    
-
+     
         [HttpPost("invitationResponse")]
         public async Task<IActionResult> InvitationResponse([FromBody] CandidateResponse req)
         {
@@ -572,7 +587,65 @@ namespace rmpBackend.Controllers
             application.StatusReason = "done by candidate";
             await db.SaveChangesAsync();
             return Ok("done");
+        }
 
+        [HttpPost("jobApply/{jobId}/{candidateId}")]
+        public async Task<IActionResult> JobApply(int jobId,int candidateId)
+        {
+            JobApplication newRecord = new JobApplication()
+            {
+                JobId = jobId,
+                CandidateId = candidateId,
+                ApplicationStatus = "Applied by candidate",
+                AppliedAt= DateTime.UtcNow,
+            };
+            await db.JobApplications.AddAsync(newRecord);
+            await db.SaveChangesAsync();
+            return Ok("done");
+        }
+
+        [HttpGet("getJob/{id}/{candidateId}")]
+        public async Task<IActionResult> GetJob(int id,int candidateId)
+        {  
+            
+            var app=await db.JobApplications.Where(i=>i.CandidateId==candidateId&&i.JobId==id).FirstOrDefaultAsync();
+
+            var Job=await db.JobOpenings
+                .Where(i=>i.JobId == id)
+                .Include(j => j.JobSkillMaps)
+                .ThenInclude(js => js.Skill)
+                .Include(j => j.JobCandidateSelecteds)
+                .ThenInclude(jc=>jc.Candidate)
+                .Select(j => new
+                {
+                    j.JobId,
+                    j.Title,
+                    j.Description,
+                    j.Location,
+                    j.Status,
+                    j.MinExperience,
+                    j.CreatedBy,
+                    j.CreatedAt,
+                    j.UpdatedAt,
+                    j.ClosedReason,
+                    Skills = j.JobSkillMaps.Select(js => new
+                    {
+                        js.SkillId,
+                        js.Skill.SkillName,
+                        js.SkillType
+                    }).ToList(),
+
+                    Applied = app==null ? false : true,
+
+                    selectedCandidate = j.JobCandidateSelecteds.Select(jc =>new 
+                    {
+                       jc.CandidateId,
+                       jc.Candidate.Name
+                       
+                    })
+                })
+                .ToListAsync();
+            return Ok(Job);
         }
     }
 }

@@ -1,15 +1,16 @@
-﻿namespace rmpBackend.Models
-{
-       
-        public class AssignReviewerDto
-        {
+﻿namespace rmpBackend.Models.DTOs
+{     
+   public class AssignReviewerDto
+   {
             public int JobId { get; set; }
             public string UserName { get; set; }
-       }
+    }
     public class ReviewerApplicationActionDto
     {
         public int ApplicationId { get; set; }
         public int CandidateId { get; set; }
+        public string CandiateResumePath { get; set; }
+        public string CandidateName { get; set; }
         public int? ReviewerUserId { get; set; }
         public string Status { get; set; }
         public bool IsPublished { get; set; }

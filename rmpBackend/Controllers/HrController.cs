@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using rmpBackend.Models;
+using rmpBackend.Models.DTOs;
 using rmpBackend.Services.Email;
 
 namespace rmpBackend.Controllers
@@ -54,8 +55,7 @@ namespace rmpBackend.Controllers
         }
 
         [HttpPut("job-candidate-selected")]
-        public async Task<IActionResult> UpdateJobCandidateSelected(int id,string username,
-    [FromBody] JobCandidateSelectedUpdateDto dto)
+        public async Task<IActionResult> UpdateJobCandidateSelected(int id,string username,[FromBody] JobCandidateSelectedUpdateDto dto)
         {
             var userId = await db.Users.Where(u => u.Username == username).Select(u => u.UserId).FirstAsync();
             var entity = await db.JobCandidateSelecteds.FindAsync(id);

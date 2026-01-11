@@ -1,4 +1,4 @@
-﻿namespace rmpBackend.Models
+﻿namespace rmpBackend.Models.DTOs
 {
     public class CreateFeedbackDto
     {
@@ -70,7 +70,9 @@
         InterviewReminder,
         FeedbackPending,
         CustomRoundEnabled,
-        OnBoarding
+        OnBoarding,
+        SendOTP,
+        CandidateCreated
     }
     public class EmailRequest
     {
@@ -80,5 +82,20 @@
         public Dictionary<string, string> Data { get; set; } = new();
     }
 
+    public class CloudinarySettings
+    {
+        public string CloudName { get; set; }
+        public string ApiKey { get; set; }
+        public string ApiSecret { get; set; }
+    }
+
+    public class RecoverAccountDto
+    {
+        public string Email { get; set; }
+        public bool IsCandidate { get; set; }
+        public string? NewPassword { get; set; }
+        public string? Otp { get; set; }
+
+    }
 
 }

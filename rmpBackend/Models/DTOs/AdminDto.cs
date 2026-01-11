@@ -1,4 +1,4 @@
-﻿namespace rmpBackend.Models
+﻿namespace rmpBackend.Models.DTOs
 {
     
     public class AssignRoleDto
